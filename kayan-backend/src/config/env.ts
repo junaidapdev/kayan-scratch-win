@@ -19,6 +19,13 @@ const envSchema = z.object({
     .string()
     .min(16, 'ADMIN_SESSION_SECRET must be at least 16 characters'),
 
+  // Temporary shared secret for admin endpoints until Chunk 6 builds real
+  // admin auth. The requireAdmin middleware checks this against the
+  // X-Admin-Key header. Not suitable for production.
+  ADMIN_PLACEHOLDER_KEY: z
+    .string()
+    .min(16, 'ADMIN_PLACEHOLDER_KEY must be at least 16 characters'),
+
   CORS_ALLOWED_ORIGINS: z
     .string()
     .min(1)

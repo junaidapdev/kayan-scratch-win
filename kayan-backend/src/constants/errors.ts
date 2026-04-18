@@ -29,6 +29,11 @@ export const ERROR_CODES = {
   REWARD_NOT_PENDING: 'REWARD_NOT_PENDING',
   REWARD_EXPIRED: 'REWARD_EXPIRED',
   REWARD_CATALOG_EMPTY: 'REWARD_CATALOG_EMPTY',
+  REWARD_NOT_OWNED: 'REWARD_NOT_OWNED',
+  CATALOG_CODE_PREFIX_TAKEN: 'CATALOG_CODE_PREFIX_TAKEN',
+  CATALOG_ITEM_NOT_FOUND: 'CATALOG_ITEM_NOT_FOUND',
+  INVALID_REDEMPTION_TOKEN: 'INVALID_REDEMPTION_TOKEN',
+  ADMIN_AUTH_REQUIRED: 'ADMIN_AUTH_REQUIRED',
 
   // Infra
   INTERNAL_ERROR: 'INTERNAL_ERROR',
@@ -111,6 +116,26 @@ export const ERROR_MESSAGES: Record<ErrorCode, BilingualMessage> = {
   [ERROR_CODES.REWARD_CATALOG_EMPTY]: {
     en: 'No rewards are currently available.',
     ar: 'لا توجد مكافآت متاحة حالياً.',
+  },
+  [ERROR_CODES.REWARD_NOT_OWNED]: {
+    en: 'This reward does not belong to the authenticated customer.',
+    ar: 'هذه المكافأة لا تعود للعميل المصادق.',
+  },
+  [ERROR_CODES.CATALOG_CODE_PREFIX_TAKEN]: {
+    en: 'A catalog item with this code prefix already exists.',
+    ar: 'يوجد عنصر في الكتالوج بهذا الرمز بالفعل.',
+  },
+  [ERROR_CODES.CATALOG_ITEM_NOT_FOUND]: {
+    en: 'The requested catalog item was not found.',
+    ar: 'عنصر الكتالوج المطلوب غير موجود.',
+  },
+  [ERROR_CODES.INVALID_REDEMPTION_TOKEN]: {
+    en: 'The redemption token is missing, invalid, or expired.',
+    ar: 'رمز الاسترداد مفقود أو غير صالح أو منتهي الصلاحية.',
+  },
+  [ERROR_CODES.ADMIN_AUTH_REQUIRED]: {
+    en: 'Admin authentication is required.',
+    ar: 'مطلوبة مصادقة المسؤول.',
   },
   [ERROR_CODES.INTERNAL_ERROR]: {
     en: 'An unexpected error occurred.',

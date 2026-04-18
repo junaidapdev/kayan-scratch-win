@@ -161,6 +161,8 @@ export async function scan(
       current_stamps: rpc.current_stamps ?? 0,
       ready_for_reward: rpc.ready_for_reward ?? false,
       visit_id: rpc.visit_id ?? '',
+      issued_reward: rpc.issued_reward ?? null,
+      catalog_empty: rpc.catalog_empty ?? false,
     };
     res.status(HTTP_STATUS.OK).json(apiSuccess(result));
   } catch (err) {

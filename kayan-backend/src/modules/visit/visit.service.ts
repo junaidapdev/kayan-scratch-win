@@ -125,6 +125,18 @@ export async function findBranchByQrIdentifier(
   return (data as BranchLookupRow | null) ?? null;
 }
 
+export interface IssuedRewardRpcPayload {
+  reward_id: string;
+  unique_code: string;
+  catalog_id: string;
+  name_en: string;
+  name_ar: string;
+  description_en: string | null;
+  description_ar: string | null;
+  estimated_value_sar: number;
+  expires_at: string;
+}
+
 export interface ProcessScanRpcResult {
   success: boolean;
   reason?: string;
@@ -135,6 +147,8 @@ export interface ProcessScanRpcResult {
   current_stamps?: number;
   ready_for_reward?: boolean;
   next_eligible_at?: string | null;
+  issued_reward?: IssuedRewardRpcPayload | null;
+  catalog_empty?: boolean;
 }
 
 export async function processScan(params: {

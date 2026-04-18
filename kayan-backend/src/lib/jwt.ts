@@ -13,6 +13,13 @@ export interface TokenPayload {
   scope: 'registration' | 'session' | 'scan';
 }
 
+export interface RedemptionTokenPayload {
+  scope: 'redemption';
+  unique_code: string;
+  customer_id: string;
+  branch_id: string;
+}
+
 export function signRegistrationToken(payload: Pick<TokenPayload, 'phone'>): string {
   return jwt.sign({ ...payload, scope: 'registration' }, SECRET, { expiresIn: '15m' });
 }
@@ -30,6 +37,36 @@ export function signScanToken(
   payload: { phone: string; customerId: string },
 ): string {
   return jwt.sign({ ...payload, scope: 'scan' }, SECRET, { expiresIn: '5m' });
+}
+
+/**
+ * 2-minute JWT issued by the reward step-1 endpoint. The step-2 handler
+ * requires it in addition to the customer session token — proves step 1
+ * just happened and binds the redemption to a specific branch.
+ */
+export function signRedemptionToken(payload: Omit<RedemptionTokenPayload, 'scope'>): string {
+  return jwt.sign({ ...payload, scope: 'redemption' }, SECRET, { expiresIn: '2m' });
+}
+
+export function verifyRedemptionToken(token: string): RedemptionTokenPayload {
+  try {
+    const payload = jwt.verify(token, SECRET) as JwtPayload & RedemptionTokenPayload;
+    if (payload.scope !== 'redemption') {
+      throw new Error('Wrong scope');
+    }
+    return {
+      scope: 'redemption',
+      unique_code: payload.unique_code,
+      customer_id: payload.customer_id,
+      branch_id: payload.branch_id,
+    };
+  } catch (err) {
+    throw createApiError(
+      ERROR_CODES.INVALID_REDEMPTION_TOKEN,
+      HTTP_STATUS.UNAUTHORIZED,
+      { message: 'Invalid or expired redemption token' },
+    );
+  }
 }
 
 export function verifyToken(token: string): TokenPayload {

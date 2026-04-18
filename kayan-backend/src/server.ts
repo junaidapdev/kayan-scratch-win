@@ -11,6 +11,7 @@ import { branchRoutes } from '@/modules/branch';
 import { authRoutes } from '@/modules/auth';
 import { customerRoutes } from '@/modules/customer';
 import { visitRoutes } from '@/modules/visit';
+import { adminCatalog, rewardRoutes } from '@/modules/reward';
 
 export function createApp(): Application {
   const app = express();
@@ -40,6 +41,8 @@ export function createApp(): Application {
   app.use('/auth', authRoutes);
   app.use('/customers', customerRoutes);
   app.use('/visits', visitRoutes);
+  app.use('/admin/rewards/catalog', adminCatalog);
+  app.use('/rewards', rewardRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
