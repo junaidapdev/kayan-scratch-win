@@ -1,0 +1,28 @@
+{
+  "app": {
+    "name": "Kayan Sweets",
+    "tagline": "Sweet rewards, every visit."
+  },
+  "common": {
+    "loading": "Loading…",
+    "comingSoon": "Coming soon",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "back": "Back"
+  },
+  "language": {
+    "switchToArabic": "العربية",
+    "switchToEnglish": "English"
+  },
+  "customer": {
+    "scan": {
+      "title": "Scan & earn",
+      "description": "Scan the code at checkout to collect your stamp."
+    }
+  },
+  "admin": {
+    "title": "Admin portal",
+    "description": "Manage customers, rewards, branches, and more."
+  }
+}

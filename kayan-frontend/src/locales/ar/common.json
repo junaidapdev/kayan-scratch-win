@@ -1,0 +1,28 @@
+{
+  "app": {
+    "name": "كيان للحلويات",
+    "tagline": "مكافآت حلوة، كل زيارة."
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "comingSoon": "قريباً",
+    "retry": "حاول مرة أخرى",
+    "cancel": "إلغاء",
+    "continue": "متابعة",
+    "back": "رجوع"
+  },
+  "language": {
+    "switchToArabic": "العربية",
+    "switchToEnglish": "English"
+  },
+  "customer": {
+    "scan": {
+      "title": "امسح واربح",
+      "description": "امسح الرمز عند الدفع لتجميع ختمك."
+    }
+  },
+  "admin": {
+    "title": "بوابة المشرف",
+    "description": "إدارة العملاء والمكافآت والفروع والمزيد."
+  }
+}
