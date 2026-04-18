@@ -86,3 +86,147 @@ starting any task.
   - Define the `customers` table's first interface + Zod schema, and stub
     `POST /customers` end-to-end (route → controller → service → supabase)
     as the reference example every subsequent feature will copy.
+
+---
+
+### [2026-04-18] Chunk 1: Backend Foundation
+- **Built:**
+  - Supabase migrations and RLS policies for branches, customers, visits, rewards_catalog, rewards_issued, admin_users, sms_log, and feedback.
+  - Supabase seed script for Kayan branches.
+  - `supabase.ts` exporting `supabaseAdmin` and `supabaseAnon`.
+  - Expanded `errors.ts` to include business and infrastructure error codes.
+  - `validator.ts` middleware for Zod schema validation (returning `400 BAD_REQUEST`).
+  - `requestLogger.ts` middleware using Winston and automatically masking PII phone numbers.
+  - Branch module foundation (`Branch.ts` interface, `branch.service.ts`, `branch.controller.ts`, `branch.routes.ts`) with `listActiveBranches` integration setup.
+  - Integrated request logger and branches route into `server.ts`.
+- **Files changed:**
+  - `src/supabase/migrations/*.sql`
+  - `src/supabase/seed.sql`
+  - `src/lib/supabase.ts`
+  - `src/constants/errors.ts`
+  - `src/middleware/validator.ts`
+  - `src/middleware/requestLogger.ts`
+  - `src/interfaces/branch/Branch.ts`, `src/interfaces/branch/index.ts`
+  - `src/modules/branch/branch.service.ts`, `branch.controller.ts`, `branch.routes.ts`, `index.ts`
+  - `src/server.ts`
+- **Decisions:**
+  - `validator.ts` issues a `400 BAD_REQUEST` aligning with REST validation error expectations from PRD, in contrast to Chunk 0's validation.ts returning 422.
+  - Added `NOT_FOUND` into `errors.ts` because it was required by the global fallback handler.
+  - Implemented phone number regex in `requestLogger.ts` to mask URLs or bodies appropriately.
+- **Open questions for human:**
+  - Migrations and Seed script must be manually applied using `npx supabase db push` and `npx supabase db reset` (or run manually via SQL) against local/cloud DB.
+- **Next:**
+  - Test E2E using `GET /branches` if Supabase has been provisioned.
+  - Stub `customers` endpoint with comprehensive test case and Zod schemas.
+
+---
+
+### [2026-04-18] Chunk 2: Auth & Customer Registration
+- **Built:**
+  - Migrated `otp_tokens` with dynamic `verify_otp` and `register_customer_and_visit` atomic RPCs using `pgcrypto`.
+  - Added SMS (`src/lib/sms.ts`) logic implementing both a stub Unifonic payload and development logger mock.
+  - Added JWT handler `jwt.ts` and Express authentication middleware handling `registration` vs `session` scopes.
+  - Added Auth endpoints (`POST /auth/otp/request` and `POST /auth/otp/verify`) with rate limiting and retry lockouts.
+  - Added Customer endpoints (`POST /customers/register` and `GET /customers/me`).
+  - Implemented unit/integration tests targeting auth flows via Jest and Supertest.
+- **Files changed:**
+  - `src/supabase/migrations/20260418130000_otp_tokens.sql`
+  - `src/lib/sms.ts`, `src/lib/jwt.ts`
+  - `src/interfaces/auth/*`, `src/modules/auth/*`
+  - `src/interfaces/customer/*`, `src/modules/customer/*`
+  - `src/server.ts`
+  - `tests/integration/auth.test.ts`, `tests/integration/customer.test.ts`
+  - `jest.config.js`
+  - `package.json` (Injected dependencies manually)
+- **Decisions:**
+  - Handled hash comparisons inside Postgres via `pgcrypto` crypt function, keeping the operation atomic. Node-side uses traditional bcrypt configuration dynamically storing tokens.
+  - Opted to write the tests and configure Jest locally mocking database imports so logic can be validated sans infrastructure.
+- **Open questions for human:**
+  - Need to run `npm install` natively to resolve the packages added to `package.json`.
+- **Next:**
+  - Existing user login workflow & returning visitor logic handled in Chunk 3.
+
+---
+
+### [2026-04-18] Chunk 3: Returning Customer Scan
+- **Built:**
+  - `audit_log` table (ip, action, phone, metadata, created_at) and
+    `fn_process_scan` atomic RPC. The RPC row-locks the customer
+    (`SELECT … FOR UPDATE`), evaluates the chain-wide 24-hour lockout
+    against `last_scan_at`, inserts a `visits` row (always, even during
+    lockout or when the card is full), updates aggregates, and caps
+    `current_stamps` at 10. Returns `{success, visit_id, stamp_awarded,
+    lockout_applied, current_stamps, ready_for_reward, next_eligible_at}`.
+  - New visit module: `visit.validators.ts` (zod schemas for
+    `/scan/lookup` and `/scan`), `visit.service.ts` (rate-limit ladder,
+    customer/branch lookups, `processScan`, `computeNextEligibleAt`),
+    `visit.controller.ts` (maps `lockout_applied=true` → 422
+    `SCAN_LOCKOUT_ACTIVE` with `next_eligible_at` details; card-full →
+    200 with `ready_for_reward:true`), `visit.routes.ts` (mounts
+    `POST /visits/scan/lookup` unauth and `POST /visits/scan` with
+    `requireAuth(['scan','session'])`).
+  - Five visit interfaces under `src/interfaces/visit/`:
+    `ScanLookupPayload`, `ScanLookupResult` (with `ScanLookupProfile`),
+    `ScanPayload`, `ScanResult`, `LockoutResult`, plus barrel.
+  - `signScanToken` helper and `'scan'` scope added to `jwt.ts`. The
+    scan token carries `customerId` so `/visits/scan` skips a second
+    phone-→-customer lookup.
+  - `RATE_LIMITED` error code + bilingual (en/ar) messages.
+  - `GET /customers/me` now returns `next_eligible_at` on the profile,
+    computed off `last_scan_at` + `current_stamps`.
+  - `app.set('trust proxy', 1)` in `server.ts` so `req.ip` reflects the
+    real client behind one reverse-proxy hop (Vercel / Nginx).
+  - Six Jest + Supertest integration tests in
+    `tests/integration/visit.test.ts` — happy path, lockout (422 with
+    `next_eligible_at`), 10th stamp (`ready_for_reward:true`), inactive
+    branch (422 `BRANCH_INACTIVE` without RPC call), rate-limit (429
+    `RATE_LIMITED` on >10 lookups/min), silence mode (`exists:false`
+    after >5 lookups/hour even for a registered phone). Custom supabase
+    builder helpers mock the fluent chains without needing a real DB.
+- **Files changed:**
+  - `src/supabase/migrations/20260418140000_audit_log_and_scan_rpc.sql`
+  - `src/lib/jwt.ts`
+  - `src/constants/errors.ts`
+  - `src/interfaces/visit/{ScanLookupPayload,ScanLookupResult,ScanPayload,ScanResult,LockoutResult,index}.ts`
+  - `src/modules/visit/{visit.validators,visit.service,visit.controller,visit.routes,index}.ts`
+  - `src/modules/customer/customer.controller.ts`
+  - `src/server.ts`
+  - `tests/integration/visit.test.ts`
+- **Decisions:**
+  - Introduced `RATE_LIMITED` as a distinct code rather than reusing
+    `OTP_RATE_LIMIT` — lookup is not OTP-shaped, and callers need to
+    branch on it separately.
+  - Two-tier rate-limit ladder on `/scan/lookup`: >10/min/IP → 429
+    hard stop (`RATE_LIMITED`); >5/hr/IP → silent `exists:false`
+    regardless of whether the phone is registered. The silent branch
+    defends against PII-enumeration scraping without tipping off
+    attackers that they've been throttled.
+  - Card-full semantics: when `current_stamps` is already 10, the RPC
+    still records the visit and bill_amount but does NOT increment,
+    and the controller returns 200 with `ready_for_reward:true`. A
+    full card is not an error state — redemption is a separate flow.
+  - Scan JWT (5-minute TTL) carries `customerId` so `/visits/scan`
+    doesn't need to re-lookup the customer from the phone. The
+    controller accepts either this short-lived `scan` token or a
+    long-lived `session` token.
+  - `trust proxy = 1` now, not later — the rate limiter's correctness
+    depends on truthful `req.ip`. Tune the hop count if deployment
+    adds more proxies in front of the app.
+  - Visit insert happens inside the atomic RPC, not from Node, so the
+    lockout check and the visit write cannot interleave with a
+    concurrent scan from the same phone.
+- **Open questions for human:**
+  - Deployment proxy depth: `trust proxy = 1` is correct for a single
+    reverse-proxy hop. Confirm whether Vercel + any CDN adds more
+    before production.
+  - Should the 10th-stamp response trigger a "reward ready"
+    notification hook here (SMS / push), or defer that to Chunk 4's
+    reward-issuance flow? Leaning defer.
+  - `audit_log` retention: no pruning job yet. Volume will grow
+    linearly with scan/lookup traffic — decide on a TTL (30d?) before
+    production.
+- **Next (Chunk 4 suggestion):**
+  - Reward issuance on the 10th stamp: reset the card to 0, insert a
+    `rewards_issued` row with a unique redemption code, SMS the code
+    to the customer, and expose `POST /rewards/redeem` for the admin
+    app to mark it used. Should reuse the same atomic-RPC pattern.
