@@ -386,3 +386,114 @@ starting any task.
     Wire against the endpoints built in Chunks 1-4. Recommended
     split: 5a (entry + registration), 5b (stamps + rewards +
     profile).
+
+
+## Chunk 6 — Admin Backend (2026-04-20)
+
+- **What shipped:**
+  - JWT-based admin authentication. `POST /admin/auth/login`,
+    `POST /admin/auth/logout`, `GET /admin/auth/me`. Tokens are 8h,
+    signed with a SEPARATE secret (`ADMIN_SESSION_SECRET`) so a
+    leaked customer `JWT_SECRET` can't forge admin sessions and vice
+    versa. Scope is `'admin'` with `admin_id`, `email`, `role` claims.
+  - Per-account login throttle: 5 failed attempts inside a rolling
+    15-minute window → `ADMIN_RATE_LIMIT` (429) until the window
+    slides past. Counter + window start live on `admin_users`.
+    Errors deliberately identical between unknown-email and
+    wrong-password paths (no credential-enumeration side channel).
+  - `requireAdmin()` middleware replaced: was a shared-secret header
+    (`X-Admin-Key` + `ADMIN_PLACEHOLDER_KEY`), now a proper
+    `Authorization: Bearer <admin_jwt>` check. `req.admin` is
+    populated downstream for audit logging.
+  - Admin KPI endpoints: `GET /admin/kpis/summary` (single-row
+    snapshot), `GET /admin/kpis/by-branch` (30d per-branch rollup),
+    `GET /admin/kpis/timeseries?days=…&branch_id=…` (per-day scan
+    rollup). All back by SQL views keyed on `Asia/Riyadh` day buckets.
+  - Customer admin endpoints: `GET /admin/customers` (paginated,
+    filterable, phone-masked), `GET /admin/customers/:id` (full
+    detail including raw phone, recent visits, rewards; audit-logged),
+    `DELETE /admin/customers/:id` (soft delete via `deleted_at`),
+    `GET /admin/customers/export` (streamed CSV, no row cap). Every
+    read of a full phone is audit-logged with `admin_id` + `phone`.
+  - Issued-reward admin endpoints: `GET /admin/rewards/issued`
+    (paginated list, phone-masked, hides voided by default),
+    `GET /admin/rewards/issued/:id` (detail with raw phone + IP/device,
+    audit-logged), `POST /admin/rewards/issued/:id/void` (with
+    required `reason`). Only `pending` rewards are voidable — redeemed
+    and expired rewards return 422. Void is atomic on the row with
+    `voided_at`, `voided_by`, `void_reason` columns.
+  - Catalog CRUD routes (carried from Chunk 4) now require the new
+    admin JWT and emit audit rows on create/update/pause/resume/archive.
+  - Idempotent single-admin bootstrap in `server.ts` start path:
+    when `ADMIN_BOOTSTRAP_EMAIL` + `ADMIN_BOOTSTRAP_PASSWORD` are set
+    AND `admin_users` is empty, one bcrypt-hashed row is inserted.
+    Any other state is a no-op. Explicit product decision: single
+    admin for now, no self-service admin creation.
+  - Migration `20260420120000_admin_support.sql` adds: soft-delete
+    columns on `customers` + `admin_users`, login throttle columns,
+    `voided_{at,by}` + `void_reason` on `rewards_issued`,
+    `admin_id` + `entity_{type,id}` on `audit_log`, and four views
+    (`v_customer_summary`, `v_daily_scans`, `v_admin_kpi_summary`,
+    `v_admin_kpi_by_branch`) — all timezone-aware where day bucketing
+    applies.
+  - Audit helper `src/lib/audit.ts`: best-effort insert, never
+    throws. Canonical action/entity strings in `src/constants/audit.ts`
+    so the trail joins on a closed set.
+  - Phone-mask helper `src/lib/mask.ts`: `+966501234567` →
+    `+9665XXXXX567`. Used by every list endpoint and by customer
+    detail responses as `phone_masked` alongside `phone_full`.
+
+- **Tests added:** 21 integration tests across 4 files —
+  `admin-auth.test.ts`, `admin-kpis.test.ts`, `admin-customers.test.ts`,
+  `admin-rewards.test.ts`. All pass. Reward-CRUD tests were
+  retargeted from header-key auth to Bearer admin JWT; all 13
+  continue to pass. Shared `_helpers.ts` extracts the supabase
+  builder-chain mock (`thenableBuilder` + `installFromRouter`) so the
+  new files don't duplicate 50 lines each.
+
+- **Decisions & nuances:**
+  - Single admin only. `POST /admin/users` or an admin-list endpoint
+    was deliberately cut. Adding more admins is a manual DB task
+    until the product asks for it.
+  - `viewer` role is declared in the schema but not enforced anywhere
+    yet. Every `requireAdmin()` gate treats `admin` and `viewer`
+    identically. Wire role-gating in when the first view-only persona
+    shows up.
+  - `ADMIN_SESSION_SECRET` is separate from `JWT_SECRET` on purpose
+    — cross-contamination of a customer secret must never grant
+    admin powers.
+  - `ADMIN_PLACEHOLDER_KEY` is now optional in `env.ts` (was
+    required). Kept as optional so existing `.env` files don't blow
+    up at boot. Safe to delete from envs; runtime no longer reads it.
+  - CSV export has no cap (product decision). Streams in 1000-row
+    pages from Supabase so memory stays bounded. No pre-filter — the
+    export is "everything not soft-deleted."
+  - Timezone for day buckets is `Asia/Riyadh` across all views.
+    Dashboards line up with the business calendar, not UTC boundaries.
+  - `unique_customers` on `/admin/kpis/timeseries` is a sum across
+    branches when no `branch_id` filter is supplied — NOT a
+    chain-wide distinct count. Acceptable for the chart; a strict
+    distinct would need a separate view.
+  - `google_review_url` on branches remains a stub column with no
+    admin-side management UI (not in scope).
+  - Audit writes are wrapped in both `if (error) …` AND a surrounding
+    try/catch so a thrown supabase client (e.g. in tests with an
+    unmocked table) can never fail the surrounding request.
+
+- **Open questions for human:**
+  - First-admin password rotation: bootstrap uses `ADMIN_BOOTSTRAP_*`
+    env vars once. There's no `/admin/auth/change-password` yet. If
+    you need to rotate, do it in the DB (`update admin_users set
+    password_hash = …`) or add the endpoint as a follow-up.
+  - Two-factor on admin login is out of scope. Consider before
+    exposing the admin portal on the public internet.
+  - `voided_at` on `rewards_issued` does not automatically transition
+    the row to `status='expired'` — the status column stays at
+    'pending' and `voided_at IS NOT NULL` is the filter. If a
+    downstream flow assumes `status` captures everything, revisit.
+
+- **Next (Chunk 8 suggestion):**
+  - Admin frontend (Next.js or Vite + React) to consume the admin
+    API. Auth screen → dashboard with KPI cards + timeseries chart
+    → customer table + detail modal → issued-rewards table with void
+    action. Keep it bilingual (ar/en) to match the customer PWA.

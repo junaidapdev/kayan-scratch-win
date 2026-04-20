@@ -3,8 +3,7 @@ import { createApp } from '@/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { HTTP_STATUS } from '@/constants/http';
 import { ERROR_CODES } from '@/constants/errors';
-import { signSessionToken, signRedemptionToken } from '@/lib/jwt';
-import { env } from '@/config/env';
+import { signSessionToken, signRedemptionToken, signAdminToken } from '@/lib/jwt';
 
 jest.mock('@/lib/supabase', () => ({
   supabaseAdmin: {
@@ -16,60 +15,21 @@ jest.mock('@/lib/supabase', () => ({
 const app = createApp();
 const request = supertest(app);
 
-const ADMIN_KEY = env.ADMIN_PLACEHOLDER_KEY;
+const ADMIN_TOKEN = signAdminToken({
+  admin_id: 'admin-test-1',
+  email: 'ops@kayan.test',
+  role: 'admin',
+});
 
 // ---------------------------------------------------------------------------
 // Supabase builder-chain helpers — mirror the visit.test.ts approach.
 // ---------------------------------------------------------------------------
-function thenableBuilder(result: { data: unknown; error: unknown }): Record<string, unknown> {
-  const resolved = Promise.resolve(result);
-  const chain: Record<string, unknown> & {
-    then: Promise<unknown>['then'];
-    catch: Promise<unknown>['catch'];
-    finally: Promise<unknown>['finally'];
-  } = {
-    then: (...args: Parameters<Promise<unknown>['then']>) => resolved.then(...args),
-    catch: (...args: Parameters<Promise<unknown>['catch']>) => resolved.catch(...args),
-    finally: (...args: Parameters<Promise<unknown>['finally']>) => resolved.finally(...args),
-  };
-  const self: Record<string, unknown> = chain;
-  self.select = (): Record<string, unknown> => chain;
-  self.eq = (): Record<string, unknown> => chain;
-  self.order = (): Record<string, unknown> => chain;
-  self.single = jest.fn().mockResolvedValue(result);
-  self.maybeSingle = jest.fn().mockResolvedValue(result);
-  self.insert = jest.fn(() => ({
-    select: () => ({
-      single: () => Promise.resolve(result),
-      maybeSingle: () => Promise.resolve(result),
-    }),
-  }));
-  self.update = jest.fn(() => ({
-    eq: () => ({
-      select: () => ({
-        single: () => Promise.resolve(result),
-        maybeSingle: () => Promise.resolve(result),
-      }),
-    }),
-  }));
-  return self;
-}
+import { thenableBuilder, installFromRouter as _install } from './_helpers';
 
 function installFromRouter(
   routes: Record<string, Record<string, unknown> | Record<string, unknown>[]>,
 ): void {
-  const cursors: Record<string, number> = {};
-  (supabaseAdmin.from as jest.Mock).mockImplementation((table: string) => {
-    const route = routes[table];
-    if (!route) throw new Error(`Unmocked supabase.from('${table}')`);
-    if (Array.isArray(route)) {
-      const idx = cursors[table] ?? 0;
-      const hit = route[Math.min(idx, route.length - 1)];
-      cursors[table] = idx + 1;
-      return hit;
-    }
-    return route;
-  });
+  _install(supabaseAdmin, routes);
 }
 
 // ---------------------------------------------------------------------------
@@ -90,7 +50,7 @@ describe('Reward system', () => {
   // Catalog CRUD + pause/resume/archive
   // ------------------------------------------------------------------
   describe('Catalog CRUD', () => {
-    it('rejects admin endpoints without the X-Admin-Key header', async () => {
+    it('rejects admin endpoints without an admin Bearer token', async () => {
       const res = await request.get('/admin/rewards/catalog');
       expect(res.status).toBe(HTTP_STATUS.UNAUTHORIZED);
       expect(res.body.error.code).toBe(ERROR_CODES.ADMIN_AUTH_REQUIRED);
@@ -98,7 +58,7 @@ describe('Reward system', () => {
 
     it('creates, updates, and pauses a catalog item', async () => {
       const created = {
-        id: 'cat-1',
+        id: '33333333-3333-3333-3333-333333333333',
         code_prefix: 'BOX-TEST',
         name_en: 'Box',
         name_ar: 'علبة',
@@ -118,7 +78,7 @@ describe('Reward system', () => {
       });
       const createRes = await request
         .post('/admin/rewards/catalog')
-        .set('X-Admin-Key', ADMIN_KEY)
+        .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
         .send({
           code_prefix: 'BOX-TEST',
           name_en: 'Box',
@@ -137,8 +97,8 @@ describe('Reward system', () => {
         }),
       });
       const pauseRes = await request
-        .post('/admin/rewards/catalog/cat-1/pause')
-        .set('X-Admin-Key', ADMIN_KEY);
+        .post('/admin/rewards/catalog/33333333-3333-3333-3333-333333333333/pause')
+        .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
       expect(pauseRes.status).toBe(HTTP_STATUS.OK);
       expect(pauseRes.body.data.status).toBe('paused');
     });
@@ -152,7 +112,7 @@ describe('Reward system', () => {
       });
       const res = await request
         .post('/admin/rewards/catalog')
-        .set('X-Admin-Key', ADMIN_KEY)
+        .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
         .send({
           code_prefix: 'BOX-TEST',
           name_en: 'Box',
