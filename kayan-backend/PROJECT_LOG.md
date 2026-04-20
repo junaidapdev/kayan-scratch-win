@@ -492,8 +492,28 @@ starting any task.
     'pending' and `voided_at IS NOT NULL` is the filter. If a
     downstream flow assumes `status` captures everything, revisit.
 
-- **Next (Chunk 8 suggestion):**
-  - Admin frontend (Next.js or Vite + React) to consume the admin
-    API. Auth screen → dashboard with KPI cards + timeseries chart
-    → customer table + detail modal → issued-rewards table with void
-    action. Keep it bilingual (ar/en) to match the customer PWA.
+- **Drive-by / tooling:**
+  - Added `"test": "jest"` script to `package.json` — the repo had
+    Jest + ts-jest configured but no script wired, so `npm test` now
+    runs the suite directly.
+  - Fixed pre-existing TS errors that were blocking ts-jest:
+    unused `visit_id` destructure in `customer.controller.ts`, and
+    `statusForScanReason` return type widened to the `HTTP_STATUS`
+    union in `visit.controller.ts`.
+
+- **Commits (pushed to origin/main):**
+  - `7b4fb3b` — feat(admin): infra (migration, JWT, middleware, audit)
+  - `71d1c4a` — feat(admin): auth/KPIs/customers/rewards modules + bootstrap
+  - `aa4942c` — test(admin): integration tests + PROJECT_LOG + npm test script
+
+- **Verification:** `npm test -- admin-auth admin-kpis admin-customers
+  admin-rewards reward` → 34/34 tests pass locally (21 new admin + 13
+  reward).
+
+- **Next (Chunk 7 suggestion):**
+  - Admin frontend (Vite + React, reusing the existing
+    `kayan-frontend` workspace under an `/admin/*` route tree).
+    Auth screen → dashboard with KPI cards + timeseries chart →
+    customer table + detail page → issued-rewards table with void
+    modal → CSV export button. English-only acceptable for v1; can
+    mirror the customer PWA's ar/en toggle later.
