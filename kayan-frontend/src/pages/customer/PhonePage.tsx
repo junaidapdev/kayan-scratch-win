@@ -56,7 +56,7 @@ export default function PhonePage(): JSX.Element {
             token: lookup.session_token,
             customer: {
               id: lookup.customer_id,
-              name: lookup.profile.name,
+              name: lookup.profile.name ?? '',
               phone: fullPhone,
             },
           });

@@ -1,9 +1,18 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
+import { AdminRouteGuard, AdminShell } from '@/components/admin';
 import { RouteGuard } from '@/components/common';
 import { ROUTES } from '@/constants/routes';
-import AdminPage from '@/pages/AdminPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import {
+  AdminBranchesPage,
+  AdminCustomerDetailPage,
+  AdminCustomersPage,
+  AdminDashboardPage,
+  AdminLoginPage,
+  AdminRewardsCatalogPage,
+  AdminRewardsIssuedPage,
+} from '@/pages/admin';
 import {
   LockoutPage,
   PhonePage,
@@ -35,8 +44,6 @@ export default function App(): JSX.Element {
         element={<RegisterOtpPage />}
       />
 
-      {/* Registration completes the customer session — guarded on the
-          registration token issued by /auth/otp/verify. */}
       <Route
         path={ROUTES.CUSTOMER.REGISTER_DETAILS}
         element={
@@ -46,7 +53,6 @@ export default function App(): JSX.Element {
         }
       />
 
-      {/* Amount entry requires the 5-min scan JWT. */}
       <Route
         path={ROUTES.CUSTOMER.SCAN_AMOUNT}
         element={
@@ -56,16 +62,12 @@ export default function App(): JSX.Element {
         }
       />
 
-      {/* Stamp success & lockout are reachable from both the register and the
-          scan flows; the stamp/lockout data rides on navigation state so the
-          pages enforce their own "open directly → /scan" fallback. */}
       <Route
         path={ROUTES.CUSTOMER.STAMP_SUCCESS}
         element={<StampSuccessPage />}
       />
       <Route path={ROUTES.CUSTOMER.LOCKOUT} element={<LockoutPage />} />
 
-      {/* The rewards surfaces require the long-lived session JWT. */}
       <Route
         path={ROUTES.CUSTOMER.REWARDS}
         element={
@@ -99,7 +101,6 @@ export default function App(): JSX.Element {
         }
       />
 
-      {/* Profile lands with the admin chunk — placeholder for now. */}
       <Route
         path={ROUTES.CUSTOMER.PROFILE}
         element={
@@ -109,7 +110,68 @@ export default function App(): JSX.Element {
         }
       />
 
-      <Route path={ROUTES.ADMIN.ROOT} element={<AdminPage />} />
+      {/* --- Admin console --- */}
+      <Route path={ROUTES.ADMIN.LOGIN} element={<AdminLoginPage />} />
+
+      <Route element={<AdminShell />}>
+        <Route
+          path={ROUTES.ADMIN.ROOT}
+          element={
+            <AdminRouteGuard>
+              <Navigate to={ROUTES.ADMIN.DASHBOARD} replace />
+            </AdminRouteGuard>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN.DASHBOARD}
+          element={
+            <AdminRouteGuard>
+              <AdminDashboardPage />
+            </AdminRouteGuard>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN.BRANCHES}
+          element={
+            <AdminRouteGuard>
+              <AdminBranchesPage />
+            </AdminRouteGuard>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN.CUSTOMERS}
+          element={
+            <AdminRouteGuard>
+              <AdminCustomersPage />
+            </AdminRouteGuard>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN.CUSTOMER_DETAIL_PATTERN}
+          element={
+            <AdminRouteGuard>
+              <AdminCustomerDetailPage />
+            </AdminRouteGuard>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN.REWARDS_CATALOG}
+          element={
+            <AdminRouteGuard>
+              <AdminRewardsCatalogPage />
+            </AdminRouteGuard>
+          }
+        />
+        <Route
+          path={ROUTES.ADMIN.REWARDS_ISSUED}
+          element={
+            <AdminRouteGuard>
+              <AdminRewardsIssuedPage />
+            </AdminRouteGuard>
+          }
+        />
+      </Route>
+
       <Route path={ROUTES.NOT_FOUND} element={<NotFoundPage />} />
     </Routes>
   );
