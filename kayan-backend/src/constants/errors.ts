@@ -34,6 +34,11 @@ export const ERROR_CODES = {
   CATALOG_ITEM_NOT_FOUND: 'CATALOG_ITEM_NOT_FOUND',
   INVALID_REDEMPTION_TOKEN: 'INVALID_REDEMPTION_TOKEN',
   ADMIN_AUTH_REQUIRED: 'ADMIN_AUTH_REQUIRED',
+  ADMIN_LOGIN_INVALID: 'ADMIN_LOGIN_INVALID',
+  ADMIN_RATE_LIMIT: 'ADMIN_RATE_LIMIT',
+  CUSTOMER_ALREADY_DELETED: 'CUSTOMER_ALREADY_DELETED',
+  REWARD_ALREADY_VOIDED: 'REWARD_ALREADY_VOIDED',
+  REWARD_NOT_VOIDABLE: 'REWARD_NOT_VOIDABLE',
 
   // Infra
   INTERNAL_ERROR: 'INTERNAL_ERROR',
@@ -136,6 +141,26 @@ export const ERROR_MESSAGES: Record<ErrorCode, BilingualMessage> = {
   [ERROR_CODES.ADMIN_AUTH_REQUIRED]: {
     en: 'Admin authentication is required.',
     ar: 'مطلوبة مصادقة المسؤول.',
+  },
+  [ERROR_CODES.ADMIN_LOGIN_INVALID]: {
+    en: 'Invalid email or password.',
+    ar: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+  },
+  [ERROR_CODES.ADMIN_RATE_LIMIT]: {
+    en: 'Too many login attempts. Please try again shortly.',
+    ar: 'عدد محاولات تسجيل الدخول كبير. الرجاء المحاولة لاحقاً.',
+  },
+  [ERROR_CODES.CUSTOMER_ALREADY_DELETED]: {
+    en: 'This customer has already been deleted.',
+    ar: 'تم حذف هذا العميل بالفعل.',
+  },
+  [ERROR_CODES.REWARD_ALREADY_VOIDED]: {
+    en: 'This reward has already been voided.',
+    ar: 'تم إلغاء هذه المكافأة بالفعل.',
+  },
+  [ERROR_CODES.REWARD_NOT_VOIDABLE]: {
+    en: 'Only pending rewards can be voided.',
+    ar: 'يمكن إلغاء المكافآت المعلقة فقط.',
   },
   [ERROR_CODES.INTERNAL_ERROR]: {
     en: 'An unexpected error occurred.',

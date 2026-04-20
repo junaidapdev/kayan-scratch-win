@@ -19,12 +19,20 @@ const envSchema = z.object({
     .string()
     .min(16, 'ADMIN_SESSION_SECRET must be at least 16 characters'),
 
-  // Temporary shared secret for admin endpoints until Chunk 6 builds real
-  // admin auth. The requireAdmin middleware checks this against the
-  // X-Admin-Key header. Not suitable for production.
-  ADMIN_PLACEHOLDER_KEY: z
+  // Legacy shared-secret from pre-Chunk 6 placeholder requireAdmin. No longer
+  // read by runtime code (Chunk 6 replaced it with JWT auth) but kept as
+  // optional so existing .env files don't blow up. Safe to delete.
+  ADMIN_PLACEHOLDER_KEY: z.string().optional(),
+
+  // Single-admin bootstrap. If both are set AND no admin rows exist yet, the
+  // server inserts one `admin_users` row on startup. Leave unset in
+  // environments where the admin was provisioned manually.
+  ADMIN_BOOTSTRAP_EMAIL: z.string().email().optional(),
+  ADMIN_BOOTSTRAP_PASSWORD: z
     .string()
-    .min(16, 'ADMIN_PLACEHOLDER_KEY must be at least 16 characters'),
+    .min(12, 'ADMIN_BOOTSTRAP_PASSWORD must be at least 12 characters')
+    .optional(),
+  ADMIN_BOOTSTRAP_NAME: z.string().min(1).optional(),
 
   CORS_ALLOWED_ORIGINS: z
     .string()

@@ -6,6 +6,7 @@ import { HTTP_STATUS } from '@/constants/http';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 
 const SECRET = env.JWT_SECRET;
+const ADMIN_SECRET = env.ADMIN_SESSION_SECRET;
 
 export interface TokenPayload {
   customerId?: string; // Opt for pre-registration
@@ -69,6 +70,42 @@ export function verifyRedemptionToken(token: string): RedemptionTokenPayload {
   }
 }
 
+export interface AdminTokenPayload {
+  scope: 'admin';
+  admin_id: string;
+  email: string;
+  role: 'admin' | 'viewer';
+}
+
+/**
+ * 8h session JWT issued by POST /admin/auth/login. Signed with a SEPARATE
+ * secret (ADMIN_SESSION_SECRET) so a leaked customer JWT_SECRET can't be used
+ * to forge admin tokens, and vice versa. Consumed exclusively by the
+ * requireAdmin middleware.
+ */
+export function signAdminToken(payload: Omit<AdminTokenPayload, 'scope'>): string {
+  return jwt.sign({ ...payload, scope: 'admin' }, ADMIN_SECRET, { expiresIn: '8h' });
+}
+
+export function verifyAdminToken(token: string): AdminTokenPayload {
+  try {
+    const payload = jwt.verify(token, ADMIN_SECRET) as JwtPayload & AdminTokenPayload;
+    if (payload.scope !== 'admin') {
+      throw new Error('Wrong scope');
+    }
+    return {
+      scope: 'admin',
+      admin_id: payload.admin_id,
+      email: payload.email,
+      role: payload.role,
+    };
+  } catch (err) {
+    throw createApiError(ERROR_CODES.ADMIN_AUTH_REQUIRED, HTTP_STATUS.UNAUTHORIZED, {
+      message: 'Invalid or expired admin token',
+    });
+  }
+}
+
 export function verifyToken(token: string): TokenPayload {
   try {
     const payload = jwt.verify(token, SECRET) as JwtPayload & TokenPayload;
@@ -84,6 +121,7 @@ declare global {
   namespace Express {
     interface Request {
       customer?: TokenPayload;
+      admin?: AdminTokenPayload;
     }
   }
 }
