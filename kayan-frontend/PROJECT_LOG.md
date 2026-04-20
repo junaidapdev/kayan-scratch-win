@@ -394,3 +394,128 @@ Eastern-Arabic-numeric title for "+١ ختم".
   customer to pick their current branch from a dropdown. Future
   iteration: derive from a branch QR scan or from the most recent
   scan context persisted alongside the session.
+
+---
+
+## Chunk 7 — Admin Dashboard Frontend (2026-04-20)
+
+Delivered the full admin console: login, dashboard, branches, customers,
+customer detail, rewards catalog and redemption log. All seven pages live
+behind `/admin/*` with a dedicated auth context, route guard, and a layout
+shell (sidebar + topbar).
+
+### Built
+- **Auth:** `AdminAuthContext` + `useAdminAuth` hook. Persists token/profile
+  to localStorage under `kayan.admin.token` / `kayan.admin.profile`.
+  Subscribes to a `kayan:admin:unauthorized` window event that
+  `adminApi.ts` dispatches whenever an admin endpoint returns 401.
+- **Admin API client:** `src/lib/adminApi.ts` wraps the shared `http` helper
+  — always forwards the persisted admin JWT, re-throws 401s after
+  dispatching the unauthorized event. Covers every admin endpoint:
+  login/logout/me, KPI summary/by-branch/timeseries, customers list/detail/
+  soft-delete/CSV export, catalog CRUD + status toggles, issued rewards
+  list/detail/void.
+- **Shared components (`src/components/admin/`):** `AdminShell`,
+  `AdminSidebar`, `AdminTopbar`, `AdminPageHeader`, `AdminKpiCard`,
+  `AdminDataTable` (generic `<T>` with server-side pagination + client-
+  side sorting via `@tanstack/react-table`), `AdminEmptyState`,
+  `AdminConfirmDialog` (Radix Dialog), `AdminStatusBadge` (separate maps
+  for catalog / issued / customer statuses), `AdminRouteGuard`.
+- **Pages (`src/pages/admin/`):** `AdminLoginPage`,
+  `AdminDashboardPage` (5 KPI cards + Recharts line chart + branch
+  leaderboard; `useInterval(60_000)` refresh paused when tab is hidden),
+  `AdminBranchesPage` + `AdminBranchDrilldownDialog`,
+  `AdminCustomersPage` (debounced search, filter pills, CSV export,
+  row-click to detail), `AdminCustomerDetailPage` (unmasked phone,
+  visits timeline, rewards timeline, typed-DELETE confirmation),
+  `AdminRewardsCatalogPage` + `AdminCatalogFormDialog` (zod-validated
+  create/edit, per-row pause/resume/archive confirms),
+  `AdminRewardsIssuedPage` + `AdminIssuedRewardDetailDialog` +
+  `AdminVoidRewardDialog` (required reason, ≥3 chars, zod enforced).
+- **Constants:** new `src/constants/admin.ts` with status enums, filter
+  pill taxonomy, `DASHBOARD_REFRESH_MS = 60_000`,
+  `ADMIN_PAGE_SIZE_DEFAULT = 20`, `ADMIN_UNAUTHORIZED_EVENT`. Extended
+  `routes.ts`, `ui.ts` (admin token / profile storage keys), `api.ts`
+  (full admin endpoint set).
+- **Interfaces (one per file, `src/interfaces/admin/`):** `AdminUser`,
+  `AdminLoginPayload`, `AdminLoginResult`, `AdminKpiSummary`,
+  `AdminKpiByBranch`, `AdminKpiTimeseriesPoint`, `AdminCustomerListItem`,
+  `AdminCustomerDetail` (+ visit/reward row types), `AdminIssuedRewardRow`,
+  `AdminIssuedRewardDetail`, `AdminCatalogItem`, `AdminCatalogFormPayload`.
+- **Hooks:** `useInterval`, `useDebouncedValue`, `useAdminAuth`.
+- **App wiring:** `main.tsx` wraps the tree in `AdminAuthProvider`
+  alongside the existing `CustomerAuthProvider`. `App.tsx` adds
+  `/admin/login` as an unguarded route and a layout route
+  `<Route element={<AdminShell />}>` wrapping every other `/admin/*`
+  path in `<AdminRouteGuard>`. Customer routes untouched. Removed the
+  placeholder `src/pages/AdminPage.tsx`.
+- **Tests (`src/components/admin/__tests__/`):**
+  - `AdminDataTable.test.tsx` — data render, empty state, pagination.
+  - `AdminKpiCard.test.tsx` — title/value, skeleton on loading, up/down
+    delta arrows.
+  - `AdminCatalogFormDialog.test.tsx` — zod error on empty `name_en`,
+    successful submit with parsed values, submit disabled while pending.
+
+### Deps added
+```
+@tanstack/react-table recharts @radix-ui/react-dialog date-fns
+```
+(`date-fns` brought in for date formatting consistency — not yet heavily
+used; admin pages use `Intl.DateTimeFormat` via `toLocaleString`. Kept
+for upcoming timeline polish.)
+
+### Decisions / exceptions (explicitly deviating from CLAUDE.md)
+- **Admin UI is English-only.** Deliberate exception to CLAUDE.md §14 —
+  hardcoded English strings in every admin component/page, no i18next
+  plumbing for admin. Customer PWA remains fully bilingual and was not
+  touched. Language toggle in `AdminTopbar` is disabled with a tooltip
+  "English only in V1".
+- **Separate token storage key.** Admin JWT persists under
+  `kayan.admin.token` (NOT the customer `kayan.auth.token`) so the two
+  sessions don't collide.
+- **CSV export bypasses the envelope interceptor.** The backend streams
+  `text/csv` directly, not `{ success, data }`. `exportCustomersCsv()`
+  makes a one-off `axios.get` with `responseType: 'blob'` and a manual
+  Authorization header — it does NOT go through the shared `http`
+  helper, because the response interceptor would reject a non-envelope
+  body.
+- **Skipped `/admin/settings`** — no route, no sidebar link, per the
+  approved plan.
+- **Dashboard auto-refresh pauses on hidden tab.** The `useInterval`
+  callback checks `document.visibilityState` before firing, so nothing
+  refetches while the tab is backgrounded.
+- **Fixed a pre-existing strict-null error** in `PhonePage.tsx`
+  (`lookup.profile.name` is `string | null`, `Customer.name` is
+  `string`). Added a `?? ''` fallback to unblock `npm run build`.
+
+### Verification
+- `npm run typecheck` — clean.
+- `npm run lint` — 0 errors, 3 harmless `react-refresh/only-export-components`
+  warnings (pre-existing `CustomerAuthContext`, new `AdminAuthContext`
+  and `AdminCatalogFormDialog`, which co-export zod schemas / context
+  object with components).
+- `npm test` — **27 tests across 9 files pass** (17 prior customer tests
+  + 10 new admin tests).
+- `npm run build` — succeeds. Production bundle:
+  925.38 kB JS gzipped 280.14 kB, 22.38 kB CSS gzipped 4.87 kB. Vite
+  flags a single >500 kB chunk warning (recharts + react-table weight);
+  code-splitting deferred to a polish pass.
+
+### Open questions / follow-ups (manual smoke test needed)
+- **Role enforcement not wired on the client.** The JWT carries
+  `role: 'admin' | 'viewer'`, but the UI currently shows every action
+  to every authenticated admin. Add role-gated rendering once the role
+  copy is finalized.
+- **No e2e automation in this chunk.** Unit tests cover the generic
+  shared components + the catalog form. Full-page flows (login →
+  dashboard → CSV export, void-reward round trip, soft-delete
+  customer) need a manual smoke pass against a live backend.
+- **Admin Arabic pass deferred.** When/if the console needs bilingual
+  support, replumb via i18next with a new `admin` namespace — customer
+  locales stay isolated.
+- **Customer-filter pills are client-side only.** "active" /
+  "inactive" / "reward_ready" are computed from the current page of
+  results. A proper backend filter would make these server-side; easy
+  follow-up once the product decides the exact definitions.
+- **Branch drill-down chart** only renders `scans` and `stamps_awarded`
+  — room to expand if the designers want lockouts or spend layered on.
