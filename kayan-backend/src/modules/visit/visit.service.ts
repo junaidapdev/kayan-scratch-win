@@ -4,15 +4,24 @@ import { logger } from '@/lib/logger';
 import { ERROR_CODES } from '@/constants/errors';
 import { HTTP_STATUS } from '@/constants/http';
 import { STAMP_LOCKOUT_HOURS } from '@/constants/business';
+import { env } from '@/config/env';
 
 const LOOKUP_ACTION = 'scan_lookup';
 
-// Ladder per task 6 — 10 lookups/IP/min is a hard stop (429). If the IP has
-// not breached 10/min but has exceeded 5 lookups in the last hour, we enter
-// "silence mode" and always return exists:false, hiding whether the phone is
-// registered. See visit.controller.ts for the apiError vs silent branch.
-export const LOOKUP_HARD_LIMIT_PER_MIN = 10;
-export const LOOKUP_SILENCE_THRESHOLD_PER_HOUR = 5;
+// Ladder per task 6 — N lookups/IP/min is a hard stop (429). If the IP has
+// not breached the per-minute cap but has exceeded the per-hour silence
+// threshold, we enter "silence mode" and always return exists:false, hiding
+// whether the phone is registered. See visit.controller.ts for the apiError
+// vs silent branch.
+//
+// Development mode gets much looser caps so smoke-testing doesn't trip the
+// silence branch (which makes a registered phone look unregistered and
+// misroutes the tester into the OTP flow). Production + test keep the
+// original tight values so the integration suite and the live ladder stay
+// honest.
+const IS_DEV = env.NODE_ENV === 'development';
+export const LOOKUP_HARD_LIMIT_PER_MIN = IS_DEV ? 1000 : 10;
+export const LOOKUP_SILENCE_THRESHOLD_PER_HOUR = IS_DEV ? 1000 : 5;
 
 export type LookupRateStatus = 'ok' | 'hard_limit' | 'silence_mode';
 
