@@ -9,6 +9,19 @@ export const ERROR_CODES = {
   RATE_LIMITED: 'RATE_LIMITED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   UNKNOWN: 'UNKNOWN',
+
+  // Visit / scan
+  SCAN_LOCKOUT_ACTIVE: 'SCAN_LOCKOUT_ACTIVE',
+  BRANCH_NOT_FOUND: 'BRANCH_NOT_FOUND',
+  BRANCH_INACTIVE: 'BRANCH_INACTIVE',
+  CUSTOMER_NOT_FOUND: 'CUSTOMER_NOT_FOUND',
+
+  // Reward redemption
+  REWARD_NOT_FOUND: 'REWARD_NOT_FOUND',
+  REWARD_NOT_OWNED: 'REWARD_NOT_OWNED',
+  REWARD_NOT_PENDING: 'REWARD_NOT_PENDING',
+  REWARD_EXPIRED: 'REWARD_EXPIRED',
+  INVALID_REDEMPTION_TOKEN: 'INVALID_REDEMPTION_TOKEN',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -58,5 +71,41 @@ export const ERROR_MESSAGES: Record<ErrorCode, BilingualMessage> = {
   [ERROR_CODES.UNKNOWN]: {
     en: 'An unknown error occurred.',
     ar: 'حدث خطأ غير معروف.',
+  },
+  [ERROR_CODES.SCAN_LOCKOUT_ACTIVE]: {
+    en: 'You already earned a stamp today. Come back tomorrow.',
+    ar: 'حصلت على ختم اليوم بالفعل. عد مرة أخرى غدًا.',
+  },
+  [ERROR_CODES.BRANCH_NOT_FOUND]: {
+    en: 'This branch QR code is not recognized.',
+    ar: 'رمز الاستجابة السريعة لهذا الفرع غير معروف.',
+  },
+  [ERROR_CODES.BRANCH_INACTIVE]: {
+    en: 'This branch is not currently active.',
+    ar: 'هذا الفرع غير فعّال حالياً.',
+  },
+  [ERROR_CODES.CUSTOMER_NOT_FOUND]: {
+    en: 'We could not find your rewards card.',
+    ar: 'لم نتمكن من العثور على بطاقة مكافآتك.',
+  },
+  [ERROR_CODES.REWARD_NOT_FOUND]: {
+    en: 'That reward could not be found.',
+    ar: 'تعذر العثور على تلك المكافأة.',
+  },
+  [ERROR_CODES.REWARD_NOT_OWNED]: {
+    en: 'This reward belongs to a different customer.',
+    ar: 'هذه المكافأة تخص عميلًا آخر.',
+  },
+  [ERROR_CODES.REWARD_NOT_PENDING]: {
+    en: 'This reward has already been used or is no longer valid.',
+    ar: 'تم استخدام هذه المكافأة أو لم تعد صالحة.',
+  },
+  [ERROR_CODES.REWARD_EXPIRED]: {
+    en: 'This reward has expired.',
+    ar: 'انتهت صلاحية هذه المكافأة.',
+  },
+  [ERROR_CODES.INVALID_REDEMPTION_TOKEN]: {
+    en: 'The redemption session is invalid. Please start again.',
+    ar: 'جلسة الاستبدال غير صالحة. الرجاء البدء من جديد.',
   },
 };

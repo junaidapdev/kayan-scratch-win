@@ -1,3 +1,7 @@
+/**
+ * Endpoint paths for the backend. Path-builder helpers keep every URL
+ * template in one file, honoring the "no magic strings" rule.
+ */
 export const API_ENDPOINTS = {
   HEALTH: '/health',
 
@@ -11,17 +15,23 @@ export const API_ENDPOINTS = {
     LIST: '/customers',
     DETAIL: (id: string): string => `/customers/${id}`,
     ME: '/customers/me',
+    REGISTER: '/customers/register',
+    MY_REWARDS: '/customers/me/rewards',
   },
 
   VISITS: {
     LIST: '/visits',
     SCAN: '/visits/scan',
+    SCAN_LOOKUP: '/visits/scan/lookup',
   },
 
   REWARDS: {
     LIST: '/rewards',
-    DETAIL: (id: string): string => `/rewards/${id}`,
-    REDEEM: (id: string): string => `/rewards/${id}/redeem`,
+    DETAIL: (code: string): string => `/rewards/${code}`,
+    REDEEM_STEP_1: (code: string): string =>
+      `/rewards/${code}/confirm-redeem-step-1`,
+    REDEEM_STEP_2: (code: string): string =>
+      `/rewards/${code}/confirm-redeem-step-2`,
   },
 
   BRANCHES: {

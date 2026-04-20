@@ -74,10 +74,16 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// Attach auth token (if any) to every outbound request.
+// Attach auth token to every outbound request:
+// - If the caller passed `config.headers.Authorization` explicitly (via the
+//   `token` option on the http helpers), respect it.
+// - Otherwise fall back to the persisted long-lived customer session JWT.
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const existing = config.headers?.Authorization;
+  if (existing) return config;
+
   const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-  if (token) {
+  if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -90,7 +96,6 @@ api.interceptors.response.use(
     const body = response.data;
 
     if (!body || typeof body !== 'object' || !('success' in body)) {
-      // Endpoint did not honor the ApiResponse contract. Treat as unknown error.
       logger.error('Non-envelope response', { url: response.config.url, body });
       throw new ApiCallError(
         ERROR_CODES.UNKNOWN,
@@ -100,8 +105,6 @@ api.interceptors.response.use(
     }
 
     if (body.success) {
-      // Replace the AxiosResponse.data with the unwrapped payload so callers
-      // receive T directly via `const data = (await api.get(...)).data`.
       return { ...response, data: body.data } as AxiosResponse<unknown>;
     }
 
@@ -113,7 +116,13 @@ api.interceptors.response.use(
     );
   },
   (error: AxiosError<ApiResponse<unknown>>) => {
-    // If the server responded with our envelope, surface that structured error.
+    const status = error.response?.status;
+
+    // Broadcast 401 so CustomerAuthContext can clear session + redirect.
+    if (status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kayan:auth:unauthorized'));
+    }
+
     const body = error.response?.data;
     if (
       body &&
@@ -124,13 +133,11 @@ api.interceptors.response.use(
       throw new ApiCallError(
         body.error.code,
         body.error.message,
-        error.response?.status,
+        status,
         body.error.details,
       );
     }
 
-    // Map status codes without an envelope to generic codes.
-    const status = error.response?.status;
     let code: ErrorCode = ERROR_CODES.UNKNOWN;
     if (!error.response) code = ERROR_CODES.NETWORK_ERROR;
     else if (status === 401) code = ERROR_CODES.UNAUTHORIZED;
@@ -145,28 +152,83 @@ api.interceptors.response.use(
 );
 
 /**
- * Thin typed helpers so callers don't have to redeclare `AxiosResponse<T>`
- * everywhere. All return the unwrapped T.
+ * Options for the http helpers. `token` overrides the default
+ * (localStorage) Authorization header — used for short-lived tokens
+ * (scan JWT, registration JWT) that must not be persisted.
+ */
+export interface HttpOptions {
+  token?: string;
+  params?: Record<string, unknown>;
+}
+
+function buildAuthHeaders(
+  token: string | undefined,
+): Record<string, string> | undefined {
+  return token ? { Authorization: `Bearer ${token}` } : undefined;
+}
+
+/**
+ * Typed helpers — all return the unwrapped T.
  */
 export const http = {
-  get: async <T>(url: string, params?: Record<string, unknown>): Promise<T> => {
-    const res = await api.get<T, AxiosResponse<T>>(url, { params });
+  get: async <T>(url: string, opts: HttpOptions = {}): Promise<T> => {
+    const res = await api.get<T, AxiosResponse<T>>(url, {
+      params: opts.params,
+      headers: buildAuthHeaders(opts.token),
+    });
     return res.data;
   },
-  post: async <T>(url: string, body?: unknown): Promise<T> => {
-    const res = await api.post<T, AxiosResponse<T>>(url, body);
+  post: async <T>(
+    url: string,
+    body?: unknown,
+    opts: HttpOptions = {},
+  ): Promise<T> => {
+    const res = await api.post<T, AxiosResponse<T>>(url, body, {
+      params: opts.params,
+      headers: buildAuthHeaders(opts.token),
+    });
     return res.data;
   },
-  put: async <T>(url: string, body?: unknown): Promise<T> => {
-    const res = await api.put<T, AxiosResponse<T>>(url, body);
+  put: async <T>(
+    url: string,
+    body?: unknown,
+    opts: HttpOptions = {},
+  ): Promise<T> => {
+    const res = await api.put<T, AxiosResponse<T>>(url, body, {
+      params: opts.params,
+      headers: buildAuthHeaders(opts.token),
+    });
     return res.data;
   },
-  patch: async <T>(url: string, body?: unknown): Promise<T> => {
-    const res = await api.patch<T, AxiosResponse<T>>(url, body);
+  patch: async <T>(
+    url: string,
+    body?: unknown,
+    opts: HttpOptions = {},
+  ): Promise<T> => {
+    const res = await api.patch<T, AxiosResponse<T>>(url, body, {
+      params: opts.params,
+      headers: buildAuthHeaders(opts.token),
+    });
     return res.data;
   },
-  delete: async <T>(url: string): Promise<T> => {
-    const res = await api.delete<T, AxiosResponse<T>>(url);
+  delete: async <T>(url: string, opts: HttpOptions = {}): Promise<T> => {
+    const res = await api.delete<T, AxiosResponse<T>>(url, {
+      params: opts.params,
+      headers: buildAuthHeaders(opts.token),
+    });
     return res.data;
   },
 };
+
+/**
+ * Resolve a bilingual API error message for the current language — callers
+ * typically pass the i18n language into this helper before toasting.
+ */
+export function pickErrorMessage(
+  err: unknown,
+  lang: 'en' | 'ar',
+): string {
+  if (err instanceof ApiCallError) return err.bilingualMessage[lang];
+  if (err instanceof Error) return err.message;
+  return fallbackMessage(ERROR_CODES.UNKNOWN)[lang];
+}

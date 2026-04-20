@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+/// <reference types="vitest" />
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
@@ -13,8 +14,8 @@ export default defineConfig({
         name: 'Kayan Sweets',
         short_name: 'Kayan',
         description: 'Kayan Sweets loyalty & rewards',
-        theme_color: '#B11116',
-        background_color: '#FFFFFF',
+        theme_color: '#0D0D0D',
+        background_color: '#F7F7F5',
         display: 'standalone',
         start_url: '/',
         icons: [
@@ -49,5 +50,11 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    css: false,
   },
 });

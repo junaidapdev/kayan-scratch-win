@@ -9,7 +9,7 @@ export default function AdminPage(): JSX.Element {
         <h1 className="text-3xl font-bold text-gray-900">{t('admin.title')}</h1>
         <p className="mt-3 text-base text-gray-600">{t('admin.description')}</p>
         <p className="mt-10 text-sm uppercase tracking-wider text-gray-400">
-          {t('common.comingSoon')}
+          {t('status.comingSoon')}
         </p>
       </div>
     </main>
