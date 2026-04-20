@@ -14,7 +14,10 @@ const uniqueCodeParam = z.object({
     .string()
     .min(3)
     .max(64)
-    .regex(/^[A-Z]+(-[A-Z]+)*-[A-Z0-9]+$/i, 'unique_code must match <prefix>-<suffix>'),
+    .regex(
+      /^[A-Z][A-Z0-9]*(-[A-Z0-9]+)+$/i,
+      'unique_code must match <prefix>-<segment>[-<segment>...]',
+    ),
 });
 
 export const issuedValidators = {

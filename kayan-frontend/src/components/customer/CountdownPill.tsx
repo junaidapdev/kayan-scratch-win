@@ -10,8 +10,16 @@ export interface CountdownPillProps {
 function formatRemaining(ms: number): string {
   if (ms <= 0) return '00:00';
   const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+
+  // Long horizons (voucher-style expiries): humane units instead of MM:SS.
+  if (days >= 1) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours >= 1) return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+
+  // Under an hour: MM:SS, appropriate for short-lived tokens.
   const mm = String(minutes).padStart(2, '0');
   const ss = String(seconds).padStart(2, '0');
   return `${mm}:${ss}`;
