@@ -10,6 +10,7 @@ import { ERROR_CODES, type ErrorCode } from '@/constants/errors';
 import type { OtpRequestPayload } from '@/interfaces/auth/OtpRequestPayload';
 import type { OtpVerifyPayload } from '@/interfaces/auth/OtpVerifyPayload';
 import { OTP_EXPIRY_SECONDS, OTP_LENGTH } from '@/constants/business';
+import { env } from '@/config/env';
 
 export async function requestOtp(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -62,7 +63,16 @@ export async function requestOtp(req: Request, res: Response, next: NextFunction
       status: 'sent',
     });
 
-    res.json(apiSuccess({ message: 'OTP requested successfully' }));
+    // In dev, echo the OTP back so the frontend can display it without needing
+    // to read the backend logs. Stripped in production by the NODE_ENV guard.
+    const responsePayload: { message: string; devOtp?: string } = {
+      message: 'OTP requested successfully',
+    };
+    if (env.NODE_ENV === 'development') {
+      responsePayload.devOtp = otp;
+    }
+
+    res.json(apiSuccess(responsePayload));
   } catch (err) {
     next(err);
   }

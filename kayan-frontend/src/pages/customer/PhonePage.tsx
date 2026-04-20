@@ -59,12 +59,13 @@ export default function PhonePage(): JSX.Element {
 
       // Unknown customer → request OTP, route to register flow. The JWT is
       // minted later by /auth/otp/verify on RegisterOtpPage.
-      await requestOtp({ phone: fullPhone });
+      const otpRes = await requestOtp({ phone: fullPhone });
       navigate(ROUTES.CUSTOMER.REGISTER_OTP, {
         state: {
           branchId: stateFromScan.branchId,
           qrIdentifier: stateFromScan.qrIdentifier,
           phone: fullPhone,
+          devOtp: otpRes.devOtp,
         },
       });
     } catch (err) {

@@ -17,13 +17,14 @@ interface LocationState {
   phone?: string;
   branchId?: string;
   qrIdentifier?: string;
+  devOtp?: string;
 }
 
 export default function RegisterOtpPage(): JSX.Element {
   const { t } = useTranslation('customer');
   const navigate = useNavigate();
   const location = useLocation();
-  const { phone, branchId, qrIdentifier } =
+  const { phone, branchId, qrIdentifier, devOtp: initialDevOtp } =
     (location.state ?? {}) as LocationState;
   const auth = useCustomerAuth();
   const toastError = useApiErrorToast();
@@ -35,6 +36,7 @@ export default function RegisterOtpPage(): JSX.Element {
     OTP_RESEND_COOLDOWN_SECONDS,
   );
   const [localError, setLocalError] = useState<string | null>(null);
+  const [devOtp, setDevOtp] = useState<string | undefined>(initialDevOtp);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -67,7 +69,8 @@ export default function RegisterOtpPage(): JSX.Element {
     if (cooldown > 0 || resending) return;
     setResending(true);
     try {
-      await requestOtp({ phone });
+      const res = await requestOtp({ phone });
+      setDevOtp(res.devOtp);
       setCooldown(OTP_RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       toastError(err);
@@ -82,6 +85,17 @@ export default function RegisterOtpPage(): JSX.Element {
       title={t('registerOtp.title')}
       description={t('registerOtp.description', { phone })}
     >
+      {devOtp ? (
+        <div
+          role="status"
+          className="mb-4 rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 font-sans text-[13px] text-yellow-900"
+        >
+          <span className="font-semibold">DEV OTP:</span>{' '}
+          <span className="font-mono tracking-widest">{devOtp}</span>
+          <span className="ml-2 opacity-60">(shown because NODE_ENV=development)</span>
+        </div>
+      ) : null}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
