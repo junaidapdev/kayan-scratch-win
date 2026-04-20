@@ -12,6 +12,8 @@ import { authRoutes } from '@/modules/auth';
 import { customerRoutes } from '@/modules/customer';
 import { visitRoutes } from '@/modules/visit';
 import { adminCatalog, rewardRoutes } from '@/modules/reward';
+import { adminRouter } from '@/modules/admin';
+import { bootstrapAdminIfNeeded } from '@/lib/adminBootstrap';
 
 export function createApp(): Application {
   const app = express();
@@ -42,6 +44,7 @@ export function createApp(): Application {
   app.use('/customers', customerRoutes);
   app.use('/visits', visitRoutes);
   app.use('/admin/rewards/catalog', adminCatalog);
+  app.use('/admin', adminRouter);
   app.use('/rewards', rewardRoutes);
 
   app.use(notFoundHandler);
@@ -50,8 +53,15 @@ export function createApp(): Application {
   return app;
 }
 
-function start(): void {
+async function start(): Promise<void> {
   const app = createApp();
+  // Non-blocking bootstrap: we still start the listener even if the bootstrap
+  // insert fails (see adminBootstrap for retry-safe idempotency).
+  bootstrapAdminIfNeeded().catch((err: unknown) => {
+    logger.warn('admin bootstrap threw', {
+      message: err instanceof Error ? err.message : String(err),
+    });
+  });
   app.listen(env.PORT, () => {
     logger.info('Kayan backend listening', {
       port: env.PORT,
@@ -63,5 +73,5 @@ function start(): void {
 // Only start the HTTP listener when this file is the entry point. This keeps
 // createApp() importable from tests without side effects.
 if (require.main === module) {
-  start();
+  void start();
 }

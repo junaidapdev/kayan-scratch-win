@@ -25,7 +25,9 @@ import {
 const SCAN_TOKEN_TTL_SECONDS = 5 * 60;
 
 // Map fn_process_scan reason strings → HTTP status. Anything unknown is 500.
-function statusForScanReason(reason: string | undefined): number {
+function statusForScanReason(
+  reason: string | undefined,
+): (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS] {
   switch (reason) {
     case ERROR_CODES.BRANCH_NOT_FOUND:
     case ERROR_CODES.CUSTOMER_NOT_FOUND:

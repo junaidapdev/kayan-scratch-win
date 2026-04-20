@@ -47,7 +47,7 @@ export async function registerCustomer(req: Request, res: Response, next: NextFu
       });
     }
 
-    const { customer_id, visit_id, current_stamps } = data;
+    const { customer_id, current_stamps } = data;
 
     // Issue a long-lived persistent session
     const sessionToken = signSessionToken({ phone: payload.phone, customerId: customer_id });
