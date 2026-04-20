@@ -72,29 +72,62 @@ export async function verifyOtp(req: Request, res: Response, next: NextFunction)
   try {
     const { phone, otp } = req.body as OtpVerifyPayload;
 
-    const { data, error } = await supabaseAdmin.rpc('verify_otp', {
-      p_phone: phone,
-      p_otp: otp,
-    });
+    // Load the latest unconsumed OTP for this phone.
+    const { data: rows, error: selectError } = await supabaseAdmin
+      .from('otp_tokens')
+      .select('id, token_hash, expires_at, attempts, consumed')
+      .eq('phone', phone)
+      .eq('consumed', false)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
-    if (error) {
+    if (selectError) {
       throw createApiError(ERROR_CODES.INTERNAL_ERROR, HTTP_STATUS.INTERNAL_SERVER_ERROR, {
-        message: 'RPC Error during OTP verification',
-        details: error.message,
+        message: 'DB error during OTP verification',
+        details: selectError.message,
       });
     }
 
-    if (!data.success) {
-      const code = data.reason as string;
-      const status = code === 'OTP_RATE_LIMIT' ? HTTP_STATUS.TOO_MANY_REQUESTS : HTTP_STATUS.UNAUTHORIZED;
-      throw createApiError(code as ErrorCode, status, {
-        message: 'OTP verification failed',
+    const record = rows && rows.length > 0 ? rows[0] : null;
+    if (!record) {
+      throw createApiError(ERROR_CODES.OTP_INVALID as ErrorCode, HTTP_STATUS.UNAUTHORIZED, {
+        message: 'No unconsumed OTP for this phone',
       });
     }
 
-    // Success! Generate Registration Token
+    if (new Date(record.expires_at).getTime() < Date.now()) {
+      throw createApiError(ERROR_CODES.OTP_EXPIRED as ErrorCode, HTTP_STATUS.UNAUTHORIZED, {
+        message: 'OTP expired',
+      });
+    }
+
+    if (record.attempts >= 5) {
+      throw createApiError(ERROR_CODES.OTP_RATE_LIMIT as ErrorCode, HTTP_STATUS.TOO_MANY_REQUESTS, {
+        message: 'Too many attempts on this OTP',
+      });
+    }
+
+    // bcrypt.compare handles $2a$ / $2b$ cleanly — unlike pgcrypto.crypt().
+    const isValid = await bcrypt.compare(otp, record.token_hash);
+
+    if (!isValid) {
+      await supabaseAdmin
+        .from('otp_tokens')
+        .update({ attempts: record.attempts + 1 })
+        .eq('id', record.id);
+      throw createApiError(ERROR_CODES.OTP_INVALID as ErrorCode, HTTP_STATUS.UNAUTHORIZED, {
+        message: 'OTP did not match',
+      });
+    }
+
+    // Success — mark consumed so it cannot be reused.
+    await supabaseAdmin
+      .from('otp_tokens')
+      .update({ consumed: true })
+      .eq('id', record.id);
+
+    // Generate Registration Token
     const token = signRegistrationToken({ phone });
-
     res.json(apiSuccess({ token, scope: 'registration' }));
   } catch (err) {
     next(err);
