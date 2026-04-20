@@ -47,6 +47,20 @@ export default function PhonePage(): JSX.Element {
       const lookup = await scanLookup({ phone: fullPhone });
 
       if (lookup.exists && lookup.scan_token && lookup.profile) {
+        // Persist the session JWT too (Chunk 7) so returning customers can
+        // reach /rewards without re-doing OTP. The scan flow still uses the
+        // short-lived scan token explicitly via the service layer, so this
+        // does NOT alter the scan auth path.
+        if (lookup.session_token && lookup.customer_id) {
+          auth.setSession({
+            token: lookup.session_token,
+            customer: {
+              id: lookup.customer_id,
+              name: lookup.profile.name,
+              phone: fullPhone,
+            },
+          });
+        }
         auth.setScan(lookup.scan_token, lookup.profile);
         navigate(ROUTES.CUSTOMER.SCAN_AMOUNT, {
           state: {

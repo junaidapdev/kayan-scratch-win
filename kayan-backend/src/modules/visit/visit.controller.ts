@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 
 import { apiSuccess, createApiError } from '@/lib/apiResponse';
-import { signScanToken } from '@/lib/jwt';
+import { signScanToken, signSessionToken } from '@/lib/jwt';
 import { HTTP_STATUS } from '@/constants/http';
 import { ERROR_CODES, type ErrorCode } from '@/constants/errors';
 
@@ -81,12 +81,20 @@ export async function scanLookup(
     };
 
     const scanToken = signScanToken({ phone, customerId: customer.id });
+    // Mint a long-lived session JWT too so returning customers can reach
+    // /rewards (and other session-scoped endpoints) without re-doing OTP.
+    // The scan flow continues to use `scanToken` explicitly via the http
+    // helper's `token` option; this session token is only consumed when the
+    // client falls back to the persisted localStorage JWT.
+    const sessionToken = signSessionToken({ phone, customerId: customer.id });
 
     const body: ScanLookupResult = {
       exists: true,
       profile,
       scan_token: scanToken,
       scan_token_expires_in_seconds: SCAN_TOKEN_TTL_SECONDS,
+      session_token: sessionToken,
+      customer_id: customer.id,
     };
     res.json(apiSuccess(body));
   } catch (err) {
