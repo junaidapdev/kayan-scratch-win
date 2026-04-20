@@ -28,6 +28,10 @@ export const ROUTES = {
     CUSTOMERS: '/admin/customers',
     REWARDS: '/admin/rewards',
     BRANCHES: '/admin/branches',
+    REWARDS_CATALOG: '/admin/rewards/catalog',
+    REWARDS_ISSUED: '/admin/rewards/issued',
+    CUSTOMER_DETAIL: (id: string): string => `/admin/customers/${id}`,
+    CUSTOMER_DETAIL_PATTERN: '/admin/customers/:id',
   },
   NOT_FOUND: '*',
 } as const;

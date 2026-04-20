@@ -19,6 +19,8 @@ export const SAUDI_PHONE_TAIL_REGEX = /^5\d{8}$/;
 export const SAUDI_PHONE_FULL_REGEX = /^\+9665\d{8}$/;
 
 export const AUTH_TOKEN_STORAGE_KEY = 'kayan.auth.token';
+export const ADMIN_AUTH_TOKEN_STORAGE_KEY = 'kayan.admin.token';
+export const ADMIN_PROFILE_STORAGE_KEY = 'kayan.admin.profile';
 export const LANGUAGE_STORAGE_KEY = 'kayan.i18n.lang';
 export const INSTALL_PROMPT_STAMP_COUNT_KEY = 'kayan.pwa.stampCount';
 export const INSTALL_PROMPT_DISMISSED_KEY = 'kayan.pwa.installDismissed';

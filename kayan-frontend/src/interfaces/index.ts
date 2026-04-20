@@ -5,3 +5,4 @@ export * from './customer';
 export * from './auth';
 export * from './visit';
 export * from './reward';
+export * from './admin';
