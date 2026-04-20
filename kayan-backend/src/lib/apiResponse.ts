@@ -4,7 +4,7 @@ import {
   type BilingualMessage,
   type ErrorCode,
 } from '@/constants/errors';
-import { HTTP_STATUS, type HttpStatus } from '@/constants/http';
+import { type HttpStatus } from '@/constants/http';
 
 export interface ApiMeta {
   [key: string]: unknown;

@@ -89,7 +89,7 @@ declare global {
 }
 
 export function requireAuth(allowedScopes: TokenPayload['scope'][]): RequestHandler {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       next(
