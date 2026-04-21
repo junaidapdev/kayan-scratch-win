@@ -9,3 +9,4 @@ export { default as AmountInput } from './AmountInput';
 export { default as StampProgressBar } from './StampProgressBar';
 export { default as RewardCard } from './RewardCard';
 export { default as CountdownPill } from './CountdownPill';
+export { default as InstallPromptBanner } from './InstallPromptBanner';

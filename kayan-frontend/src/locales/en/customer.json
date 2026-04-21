@@ -133,6 +133,18 @@
     "phoneInvalid": "Phone number format is not valid.",
     "unknown": "Something went wrong. Please try again."
   },
+  "install": {
+    "prompt": {
+      "title": "Add Kayan to your home screen",
+      "cta": "Install",
+      "dismiss": "Not now"
+    }
+  },
+  "offline": {
+    "title": "You're offline",
+    "description": "Check your connection and try again.",
+    "retry": "Try again"
+  },
   "months": {
     "1": "January",
     "2": "February",

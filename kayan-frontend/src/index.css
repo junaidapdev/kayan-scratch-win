@@ -40,3 +40,9 @@ html[lang='ar'] body {
 .pulse-border {
   animation: pulse-border 1.6s ease-in-out infinite;
 }
+
+/* A11y — visible focus ring on every focusable element, globally. */
+*:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
+}

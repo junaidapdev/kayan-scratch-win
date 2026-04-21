@@ -74,6 +74,15 @@ const config: Config = {
       boxShadow: {
         'focus-yellow': '0 0 0 3px rgba(255, 215, 0, 0.4)',
       },
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 150ms ease-out',
+      },
     },
   },
   plugins: [tailwindcssRtl],

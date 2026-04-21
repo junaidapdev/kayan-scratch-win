@@ -8,6 +8,7 @@ export { default as AdminEmptyState } from './AdminEmptyState';
 export { default as AdminConfirmDialog } from './AdminConfirmDialog';
 export { default as AdminStatusBadge } from './AdminStatusBadge';
 export { default as AdminRouteGuard } from './AdminRouteGuard';
+export { default as AdminPageSpinner } from './AdminPageSpinner';
 export type { AdminKpiCardProps } from './AdminKpiCard';
 export type { AdminDataTableProps, AdminDataTablePagination } from './AdminDataTable';
 export type { AdminConfirmDialogProps } from './AdminConfirmDialog';

@@ -1,18 +1,14 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { AdminRouteGuard, AdminShell } from '@/components/admin';
-import { RouteGuard } from '@/components/common';
+import {
+  AdminPageSpinner,
+  AdminRouteGuard,
+  AdminShell,
+} from '@/components/admin';
+import { AppErrorBoundary, RouteGuard } from '@/components/common';
 import { ROUTES } from '@/constants/routes';
 import NotFoundPage from '@/pages/NotFoundPage';
-import {
-  AdminBranchesPage,
-  AdminCustomerDetailPage,
-  AdminCustomersPage,
-  AdminDashboardPage,
-  AdminLoginPage,
-  AdminRewardsCatalogPage,
-  AdminRewardsIssuedPage,
-} from '@/pages/admin';
 import {
   LockoutPage,
   PhonePage,
@@ -27,6 +23,27 @@ import {
   ScanLandingPage,
   StampSuccessPage,
 } from '@/pages/customer';
+
+// Admin chunks are lazy so customer-only traffic doesn't download them.
+const AdminLoginPage = lazy(() => import('@/pages/admin/AdminLoginPage'));
+const AdminDashboardPage = lazy(
+  () => import('@/pages/admin/AdminDashboardPage'),
+);
+const AdminBranchesPage = lazy(
+  () => import('@/pages/admin/AdminBranchesPage'),
+);
+const AdminCustomersPage = lazy(
+  () => import('@/pages/admin/AdminCustomersPage'),
+);
+const AdminCustomerDetailPage = lazy(
+  () => import('@/pages/admin/AdminCustomerDetailPage'),
+);
+const AdminRewardsCatalogPage = lazy(
+  () => import('@/pages/admin/AdminRewardsCatalogPage'),
+);
+const AdminRewardsIssuedPage = lazy(
+  () => import('@/pages/admin/AdminRewardsIssuedPage'),
+);
 
 export default function App(): JSX.Element {
   return (
@@ -111,9 +128,24 @@ export default function App(): JSX.Element {
       />
 
       {/* --- Admin console --- */}
-      <Route path={ROUTES.ADMIN.LOGIN} element={<AdminLoginPage />} />
+      <Route
+        path={ROUTES.ADMIN.LOGIN}
+        element={
+          <Suspense fallback={<AdminPageSpinner />}>
+            <AdminLoginPage />
+          </Suspense>
+        }
+      />
 
-      <Route element={<AdminShell />}>
+      <Route
+        element={
+          <AppErrorBoundary scope="admin">
+            <Suspense fallback={<AdminPageSpinner />}>
+              <AdminShell />
+            </Suspense>
+          </AppErrorBoundary>
+        }
+      >
         <Route
           path={ROUTES.ADMIN.ROOT}
           element={

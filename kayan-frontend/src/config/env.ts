@@ -5,6 +5,13 @@ const envSchema = z.object({
   VITE_SUPABASE_URL: z.string().url().optional().or(z.literal('')),
   VITE_SUPABASE_ANON_KEY: z.string().optional().or(z.literal('')),
   VITE_SENTRY_DSN: z.string().optional().or(z.literal('')),
+  VITE_SENTRY_TRACES_SAMPLE_RATE: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .default(0.1),
+  VITE_APP_RELEASE: z.string().optional().default('dev'),
   VITE_POSTHOG_KEY: z.string().optional().or(z.literal('')),
   VITE_APP_NAME: z.string().min(1).default('Kayan Sweets'),
   MODE: z.enum(['development', 'production', 'test']).default('development'),

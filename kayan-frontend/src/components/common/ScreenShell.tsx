@@ -25,7 +25,13 @@ export default function ScreenShell({
   footer,
 }: ScreenShellProps): JSX.Element {
   return (
-    <div className="min-h-full bg-canvas-bg">
+    <div className="min-h-full animate-fade-in bg-canvas-bg">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:start-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-yellow focus:px-3 focus:py-2 focus:text-obsidian"
+      >
+        Skip to content
+      </a>
       <header className="flex items-center justify-between px-6 pt-6 pb-2">
         <div
           className="font-display text-[20px] tracking-[4px] text-obsidian"
@@ -36,7 +42,7 @@ export default function ScreenShell({
         {showLanguageToggle ? <LanguageToggle /> : <span />}
       </header>
 
-      <main className="mx-auto flex w-full max-w-md flex-col px-6 pb-12 pt-8">
+      <main id="main" className="mx-auto flex w-full max-w-md flex-col px-6 pb-12 pt-8">
         {eyebrow ? (
           <p className="eyebrow text-obsidian/70">{eyebrow}</p>
         ) : null}

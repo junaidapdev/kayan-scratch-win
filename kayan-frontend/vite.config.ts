@@ -9,36 +9,52 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'offline.html'],
       manifest: {
         name: 'Kayan Sweets',
         short_name: 'Kayan',
         description: 'Kayan Sweets loyalty & rewards',
         theme_color: '#0D0D0D',
-        background_color: '#F7F7F5',
+        background_color: '#FFFFFF',
         display: 'standalone',
         start_url: '/',
         icons: [
           {
-            src: '/icons/icon-192.png',
+            src: '/icons/icon-192.svg',
             sizes: '192x192',
-            type: 'image/png',
+            type: 'image/svg+xml',
           },
           {
-            src: '/icons/icon-512.png',
+            src: '/icons/icon-512.svg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/svg+xml',
           },
           {
-            src: '/icons/icon-512-maskable.png',
+            src: '/icons/icon-512-maskable.svg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/svg+xml',
             purpose: 'maskable',
           },
         ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
+        navigateFallback: '/offline.html',
+        navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 64,
+                maxAgeSeconds: 60 * 60 * 24,
+              },
+            },
+          },
+        ],
       },
     }),
   ],
@@ -56,5 +72,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Playwright smoke tests live under `tests/` and must not be picked
+    // up by vitest — they use their own runner (see `npm run test:smoke`).
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**'],
   },
 });

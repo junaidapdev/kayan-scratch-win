@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import { BrandedButton, ScreenShell } from '@/components/common';
 import { ROUTES } from '@/constants/routes';
+import { haptic } from '@/lib/haptics';
 import type { IssuedReward } from '@/interfaces/reward';
 
 interface LocationState {
@@ -15,6 +17,10 @@ export default function RewardDonePage(): JSX.Element {
   const location = useLocation();
   const stateParams = (location.state ?? {}) as LocationState;
   const lang = (i18n.language.split('-')[0] ?? 'en') as 'en' | 'ar';
+
+  useEffect(() => {
+    haptic(30);
+  }, []);
 
   const name = stateParams.reward
     ? lang === 'ar' && stateParams.reward.reward_name_snapshot_ar

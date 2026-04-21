@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import confetti from 'canvas-confetti';
 
 import { BrandedButton, ScreenShell } from '@/components/common';
-import { StampProgressBar } from '@/components/customer';
+import { InstallPromptBanner, StampProgressBar } from '@/components/customer';
 import { ROUTES } from '@/constants/routes';
 import { STAMPS_PER_CARD } from '@/constants/ui';
 import { useCustomerAuth } from '@/contexts/CustomerAuthContext';
+import { haptic } from '@/lib/haptics';
+import { recordSuccessfulStamp } from '@/lib/pwaInstallPrompt';
 import type { ScanResult } from '@/interfaces/visit';
 import type { ScanLookupProfile } from '@/interfaces/visit';
 
@@ -54,6 +57,28 @@ export default function StampSuccessPage(): JSX.Element {
   const cardFull =
     stampsCurrent >= STAMPS_PER_CARD ||
     Boolean(stateParams.scanResult?.ready_for_reward);
+
+  // Fire confetti + haptic + increment stamp count once per mount.
+  useEffect(() => {
+    if (!stateParams.scanResult && !stateParams.firstStamp) return;
+    recordSuccessfulStamp();
+    haptic(30);
+    const reduceMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduceMotion) {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.3 },
+        colors: ['#FFD700', '#0D0D0D'],
+        ticks: 160,
+      });
+    }
+    // Intentionally run once — celebration is per-landing, not per-state-change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-redirect registered users to /rewards after a short celebration.
   const [secondsLeft, setSecondsLeft] = useState<number>(5);
@@ -129,6 +154,7 @@ export default function StampSuccessPage(): JSX.Element {
           {t('stampSuccess.done')}
         </BrandedButton>
       </div>
+      <InstallPromptBanner />
     </ScreenShell>
   );
 }

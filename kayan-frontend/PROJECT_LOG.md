@@ -553,3 +553,159 @@ Quick polish on the admin frontend after manual smoke test.
 - `npm run lint` — 0 errors (3 pre-existing warnings)
 - `npm test` — 27/27 pass
 - `npm run build` — succeeds
+
+---
+
+## Chunk 8b — Frontend polish + launch prep (2026-04-21)
+
+### What shipped
+- **(1) Sentry wiring.** `@sentry/react` installed.
+  `src/lib/sentry.ts` exposes `initSentry()` + `captureException()`;
+  both are no-ops (with an info log) when `VITE_SENTRY_DSN` is unset.
+  `initSentry()` runs before `ReactDOM.createRoot` in `src/main.tsx`.
+  `reactRouterV6BrowserTracingIntegration` is wired for route-change
+  spans. Env zod schema extended with `VITE_SENTRY_DSN`,
+  `VITE_SENTRY_TRACES_SAMPLE_RATE` (default 0.1), and
+  `VITE_APP_RELEASE` (default `'dev'`).
+- **(3) PWA polish.**
+  - Brand-aligned `theme_color: #0D0D0D` and `background_color: #FFFFFF`
+    in both `public/manifest.json` and the `VitePWA` config.
+  - SVG placeholder icons at 192, 512, and 512-maskable with the
+    Kayan-yellow square + obsidian "K" glyph. `public/icons/README.md`
+    flags the swap-for-PNG step before launch.
+  - Workbox `navigateFallback: '/offline.html'` with
+    `navigateFallbackDenylist: [/^\/api/]`; `runtimeCaching` rule
+    `NetworkFirst` (5s timeout, cache name `api`) for `/api/*`.
+  - Bilingual `public/offline.html` fallback (inline CSS, no external
+    fonts).
+  - `useInstallPrompt()` hook captures `beforeinstallprompt`.
+  - `InstallPromptBanner` dismissible banner, mounted inside
+    `StampSuccessPage` (no shared customer layout today). i18n keys
+    `install.prompt.{title,cta,dismiss}` in ar + en.
+  - `StampSuccessPage` now calls `recordSuccessfulStamp()` on mount —
+    previously the counter existed but had no caller.
+- **(4) Error boundary.** `AppErrorBoundary` wraps `<App />`; a nested
+  boundary wraps the admin `<AdminShell />` subtree so admin crashes
+  don't unmount customer state. Fallback auto-detects customer vs admin
+  via `location.pathname.startsWith('/admin')` (overridable via `scope`
+  prop). `componentDidCatch` forwards to `captureException`.
+- **(5) Accessibility.** Global `*:focus-visible` yellow outline in
+  `src/index.css`. Skip-links (`<a href="#main" class="sr-only …">`) in
+  both `ScreenShell` and `AdminShell`, with `id="main"` on the content
+  container. No yellow-on-white body text exists today
+  (yellow is only a fill on primary buttons with obsidian foreground
+  — contrast is fine). Radix dialogs were audited in 7.1.
+- **(6) Lazy admin routes.** Every `Admin*Page` is now `React.lazy`;
+  only customer pages remain eager. Admin subtree is wrapped in
+  `<Suspense fallback={<AdminPageSpinner />}>`. Build confirms
+  separation — see chunk sizes below.
+- **(7) Copy pass.** English locale files reread; no typos or lorem
+  ipsum found (they were tight already). Arabic strings are NOT
+  rewritten — instead a full `COPY-REVIEW-AR.md` file enumerates every
+  AR key with its EN source for a native reviewer.
+- **(8) Visual polish.**
+  - `canvas-confetti` burst on `StampSuccessPage` mount (yellow +
+    obsidian, 80 particles, 160 ticks) guarded by
+    `prefers-reduced-motion`.
+  - Tailwind `animate-fade-in` keyframe (150ms) applied at the root of
+    `ScreenShell` — covers every customer page via the shared shell.
+  - `src/lib/haptics.ts` exports `haptic(pattern)` which feature-detects
+    `navigator.vibrate`. Wired into the stamp-success and reward-done
+    pages (30ms tap).
+  - `src/components/common/Skeleton.tsx` — reusable primitive
+    (`width`/`height`/`rounded`). The existing `RewardsPage` already
+    uses the `LoadingSkeleton` sibling; left as-is to avoid churn.
+- **(9) Deployment config.** `vercel.json` pins `fra1`, SPA rewrite,
+  immutable cache for `/assets/*`, `must-revalidate` for shell files.
+- **(10) Playwright smoke.** `@playwright/test` installed. Config reads
+  `PREVIEW_URL` (throws if unset). `tests/smoke/customer-journey.spec.ts`
+  drives the scan → phone → OTP request path and logs a bail at the
+  OTP step per the plan. `tests/smoke/README.md` documents the fixture
+  dependency. `npm run test:smoke` script added. Vitest `exclude`
+  extended with `tests/**` so the two runners don't collide.
+- **(11) README.** Full rewrite — overview, stack, scripts, env var
+  table, project tree, Vercel deployment section (with
+  `VERCEL_GIT_COMMIT_SHA` tip for Sentry releases), and a known-
+  limitations block.
+
+### New files
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/lib/sentry.ts`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/lib/haptics.ts`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/components/common/AppErrorBoundary.tsx`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/components/common/Skeleton.tsx`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/components/customer/InstallPromptBanner.tsx`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/components/admin/AdminPageSpinner.tsx`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/src/hooks/useInstallPrompt.ts`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/public/icons/icon-192.svg`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/public/icons/icon-512.svg`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/public/icons/icon-512-maskable.svg`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/public/icons/README.md`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/public/offline.html`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/vercel.json`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/playwright.config.ts`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/tests/smoke/customer-journey.spec.ts`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/tests/smoke/README.md`
+- `/Users/mdjunaidap/Desktop/scratchtool/kayan-frontend/COPY-REVIEW-AR.md`
+
+### Decisions / deviations
+- **SVG icons, not PNG.** Generating rasters in this sandbox is
+  infeasible (no imagemagick/sharp CLI guaranteed). Spec allowed SVG
+  fallback; the swap path is documented in `public/icons/README.md`
+  and also called out as a known limitation in the README.
+- **`theme_color: #0D0D0D`** chosen per spec (obsidian — matches the
+  brand anchor) over the legacy `#B11116` that was in `manifest.json`.
+- **Sentry no-op when DSN unset.** Local dev and PR previews rarely
+  have a DSN configured; silently disabling avoids a noisy
+  initialization and lets `logger.info` record that Sentry is off.
+- **Playwright smoke defers OTP** because no backend fixture issues a
+  deterministic code yet. The test `skip()`s gracefully if
+  `SMOKE_BRANCH_QR` is also unset.
+- **Storage keys kept from Chunk 5b.** The spec listed
+  `kayan.install.dismissed` / `kayan.stamps.earned` but the codebase
+  already exposes constants `INSTALL_PROMPT_DISMISSED_KEY`
+  (`kayan.pwa.installDismissed`) and `INSTALL_PROMPT_STAMP_COUNT_KEY`
+  (`kayan.pwa.stampCount`). Kept the existing keys (with the existing
+  helpers `recordSuccessfulStamp`/`shouldShowInstallPrompt`) so old
+  users' dismissal state survives.
+- **Skeleton coexists with LoadingSkeleton.** `LoadingSkeleton`
+  already exists in `src/components/common` with a `className`/`rounded`
+  surface. Added `Skeleton` as a newer primitive with width/height
+  props per spec. Both export; consumers can pick. Didn't rewrite the
+  Rewards page — it already uses `LoadingSkeleton` for its skeletons.
+- **Admin chunk names still contain page names.** Vite's default
+  chunk-splitting for lazy imports uses the page filename — that's
+  what the build output shows (see chunk sizes below). No manual
+  chunks config was needed.
+
+### Verification
+- `npm run typecheck` — clean.
+- `npm run lint` — 0 errors, 3 pre-existing warnings
+  (`react-refresh/only-export-components` on auth contexts + catalog
+  dialog, all from prior chunks).
+- `npm test` — **27/27 pass**.
+- `npm run build` — succeeds. Key chunk sizes (gzipped):
+  - Customer entry `index-*.js` — **612.28 kB / 196.76 kB gz**
+    (down from 925.38 kB monolithic in Chunk 7)
+  - `AdminDataTable-*.js` — 53.47 kB / 14.50 kB gz
+  - `LineChart-*.js` (recharts) — 354.90 kB / 105.70 kB gz
+  - `AdminBranchesPage-*.js` — 10.36 kB / 3.68 kB gz
+  - `AdminRewardsCatalogPage-*.js` — 8.89 kB / 2.74 kB gz
+  - `AdminRewardsIssuedPage-*.js` — 5.91 kB / 2.29 kB gz
+  - `AdminCustomerDetailPage-*.js` — 5.27 kB / 1.70 kB gz
+  - `AdminDashboardPage-*.js` — 3.78 kB / 1.57 kB gz
+  - `AdminCustomersPage-*.js` — 3.14 kB / 1.54 kB gz
+  - `AdminLoginPage-*.js` — 2.47 kB / 1.10 kB gz
+  Admin-only traffic no longer fetched by customer sessions.
+- `npm run test:smoke` — **not run** (needs `PREVIEW_URL` + deployed
+  preview + installed browsers).
+
+### Open questions for the human
+1. **PNG icon assets** — when can design hand over the production 192
+   / 512 / 512-maskable PNGs? Currently shipping SVG placeholders.
+2. **Backend OTP fixture** — can we reserve a test phone
+   (e.g. `+966500999001`) that always issues OTP `000000` so the
+   Playwright smoke can run the full register → scan × 10 → redeem
+   path?
+3. **Arabic copy review** — who owns the native-speaker pass on
+   `COPY-REVIEW-AR.md`, and by when? Blocks the launch-readiness
+   sign-off.
