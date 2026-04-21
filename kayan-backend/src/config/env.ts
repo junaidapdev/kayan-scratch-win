@@ -47,6 +47,11 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(['error', 'warn', 'info', 'debug'])
     .default('info'),
+
+  // Sentry — all optional. When SENTRY_DSN is unset, Sentry is a no-op.
+  SENTRY_DSN: z.string().url().optional(),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+  APP_RELEASE: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

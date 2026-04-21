@@ -4,6 +4,7 @@ import { HTTP_STATUS } from '@/constants/http';
 import { ERROR_CODES } from '@/constants/errors';
 import { ApiError, apiError } from '@/lib/apiResponse';
 import { logger } from '@/lib/logger';
+import { captureException } from '@/lib/sentry';
 import { env } from '@/config/env';
 
 function isApiError(err: unknown): err is ApiError {
@@ -24,7 +25,19 @@ export const errorHandler: ErrorRequestHandler = (
       status: err.status,
       path: req.path,
       method: req.method,
+      request_id: req.request_id,
     });
+    // Only 5xx ApiErrors flow to Sentry — 4xx are client errors and would
+    // flood the backend queue without signal.
+    if (err.status >= 500) {
+      captureException(err, {
+        request_id: req.request_id,
+        path: req.path,
+        method: req.method,
+        status: err.status,
+        code: err.code,
+      });
+    }
     res.status(err.status).json(err.toResponse());
     return;
   }
@@ -57,6 +70,14 @@ export const errorHandler: ErrorRequestHandler = (
     method: req.method,
     message,
     stack,
+    request_id: req.request_id,
+  });
+
+  captureException(err, {
+    request_id: req.request_id,
+    path: req.path,
+    method: req.method,
+    status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
   });
 
   const responseBody = apiError(

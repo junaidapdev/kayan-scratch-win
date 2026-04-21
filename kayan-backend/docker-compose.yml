@@ -1,0 +1,16 @@
+# docker-compose for Kayan Sweets backend.
+#
+# Supabase is intentionally NOT a service here — this project points at
+# Supabase Cloud for all environments (pilot and prod). If you want a fully
+# offline stack, run `supabase start` separately (per the Supabase CLI docs)
+# and set SUPABASE_URL + SUPABASE_*_KEY in .env to the values the CLI prints.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

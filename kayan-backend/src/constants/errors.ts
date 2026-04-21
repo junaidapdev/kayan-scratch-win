@@ -44,6 +44,7 @@ export const ERROR_CODES = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   NOT_FOUND: 'NOT_FOUND',
   RATE_LIMITED: 'RATE_LIMITED',
+  SERVICE_NOT_READY: 'SERVICE_NOT_READY',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -173,5 +174,9 @@ export const ERROR_MESSAGES: Record<ErrorCode, BilingualMessage> = {
   [ERROR_CODES.RATE_LIMITED]: {
     en: 'Too many requests. Please try again later.',
     ar: 'عدد الطلبات كبير جداً. الرجاء المحاولة لاحقاً.',
+  },
+  [ERROR_CODES.SERVICE_NOT_READY]: {
+    en: 'The service is not ready to handle requests.',
+    ar: 'الخدمة غير جاهزة لمعالجة الطلبات.',
   },
 };

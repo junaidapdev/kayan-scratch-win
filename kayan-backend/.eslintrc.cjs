@@ -32,5 +32,5 @@ module.exports = {
       },
     },
   ],
-  ignorePatterns: ['dist/', 'build/', 'node_modules/', 'coverage/'],
+  ignorePatterns: ['dist/', 'build/', 'node_modules/', 'coverage/', 'tests/smoke/'],
 };

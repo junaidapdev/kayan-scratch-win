@@ -66,3 +66,84 @@ All contributors (human or AI) must follow [CLAUDE.md](./CLAUDE.md). Highlights:
 
 Progress is tracked chunk-by-chunk in [PROJECT_LOG.md](./PROJECT_LOG.md). Read the
 most recent entry before starting a new task; append a new entry when you finish one.
+
+## Deployment
+
+### Supabase project setup
+
+1. Create a new Supabase project (Riyadh region recommended).
+2. Copy the **Project URL** and **service_role key** from *Settings → API*.
+3. RLS is enabled on every table via the migrations — nothing additional to toggle.
+4. Enable the `pg_cron` extension: *Database → Extensions → enable `pg_cron`*.
+
+### Environment variables
+
+| Variable                        | Required | Example                                         | Notes                                                         |
+| ------------------------------- | :------: | ----------------------------------------------- | ------------------------------------------------------------- |
+| `PORT`                          |    no    | `3000`                                          | Listener port. Default `3000`.                                |
+| `NODE_ENV`                      |    no    | `production`                                    | `development`, `test`, `production`.                          |
+| `SUPABASE_URL`                  |   yes    | `https://xxxx.supabase.co`                      | Supabase project URL.                                         |
+| `SUPABASE_ANON_KEY`             |   yes    | `eyJhbGci…`                                     | Public anon key.                                              |
+| `SUPABASE_SERVICE_ROLE_KEY`     |   yes    | `eyJhbGci…`                                     | Server-only. NEVER ship to the browser.                       |
+| `SMS_PROVIDER_API_KEY`          |   yes    | `REDACTED`                                      | Unifonic (or equivalent) API key.                             |
+| `SMS_PROVIDER_SENDER_ID`        |   yes    | `KAYAN`                                         | Sender ID registered with the SMS provider.                   |
+| `JWT_SECRET`                    |   yes    | `32+ random bytes`                              | Customer token signing secret. Min 16 chars.                  |
+| `ADMIN_SESSION_SECRET`          |   yes    | `32+ random bytes`                              | Admin token signing secret. Must differ from `JWT_SECRET`.    |
+| `ADMIN_BOOTSTRAP_EMAIL`         |    no    | `admin@kayansweets.com`                         | First-admin bootstrap (one-shot).                             |
+| `ADMIN_BOOTSTRAP_PASSWORD`      |    no    | `REDACTED`                                      | Min 12 chars. Rotate manually after first login.              |
+| `ADMIN_BOOTSTRAP_NAME`          |    no    | `Administrator`                                 | Display name for the bootstrapped admin.                      |
+| `CORS_ALLOWED_ORIGINS`          |   yes    | `https://app.kayansweets.com,https://admin…`    | Comma-separated list of allowed frontend origins.             |
+| `LOG_LEVEL`                     |    no    | `info`                                          | `error`, `warn`, `info`, `debug`.                             |
+| `SENTRY_DSN`                    |    no    | `https://…@sentry.io/…`                         | When unset, Sentry is a no-op.                                |
+| `SENTRY_TRACES_SAMPLE_RATE`     |    no    | `0.1`                                           | 0.0 – 1.0. Defaults to 0.1.                                   |
+| `APP_RELEASE`                   |    no    | `kayan-backend@0.1.0`                           | Used as Sentry release tag. Defaults to `dev`.                |
+
+### Migrations
+
+```bash
+# Preferred: apply everything in src/supabase/migrations/ in order.
+npx supabase db push
+
+# Fallback: run each SQL file in sorted order via psql against the project's
+# connection string.
+```
+
+### Seed
+
+```bash
+# Pilot-only seed. Hard-fails when NODE_ENV=production.
+# Creates 2 admins + 20 customers with realistic stamp/reward distributions.
+npm run seed:pilot
+```
+
+### Cron setup
+
+Schedule the reward-expiry sweep nightly at 03:00 Riyadh time (00:00 UTC):
+
+```sql
+-- Run against the Supabase SQL editor once pg_cron is enabled.
+select cron.schedule(
+  'reward-expiry-nightly',
+  '0 0 * * *',
+  $$ select public.fn_expire_stale_rewards(); $$
+);
+```
+
+### DNS / domain
+
+The production API is expected at `api.kayansweets.com`. Whatever host you
+deploy to, add its origin to `CORS_ALLOWED_ORIGINS` so the customer PWA and
+admin portal can reach it. The PWA typically lives at
+`app.kayansweets.com` and the admin portal at `admin.kayansweets.com`.
+
+### Deployment targets
+
+Build once with the provided `Dockerfile` and ship the image to any
+container-first host: **Render**, **Railway**, and **Fly.io** are all good
+matches for this workload.
+
+**Vercel is not recommended** for this service. Vercel's serverless runtime
+cold-starts Express handlers on every invocation (bad tail-latency) and its
+function timeout collides with the graceful-shutdown + long-poll patterns the
+backend expects. Keep Vercel for the frontend only.
+

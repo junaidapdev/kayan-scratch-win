@@ -545,3 +545,135 @@ Small backend addition supporting the frontend polish.
 - Admin integration tests: 21/21 pass (`npx jest tests/integration/admin`)
 - Full suite: 2 pre-existing, unrelated failures in `auth.test.ts` and
   `reward.test.ts` (not introduced by this chunk)
+
+---
+
+## Chunk 8a — Backend polish + launch prep (2026-04-21)
+
+### What shipped
+- **Sentry** wired as an entirely optional dependency (`@sentry/node` v8).
+  `initSentry()` runs at the top of `createApp()`; `captureException()` fires
+  for 5xx paths only. Both are no-ops when `SENTRY_DSN` is unset (logs a
+  single "disabled" line at startup so ops can tell).
+- **Graceful shutdown**: SIGTERM / SIGINT drain in-flight requests with a 10s
+  hard cap, `uncaughtException` / `unhandledRejection` capture to Sentry and
+  exit(1). `server.close()` is awaited then Sentry is flushed before exit.
+- **Production logging**: every request gets a `request_id` (UUID v4, or
+  inbound `X-Request-Id`). Finish-line log now includes `request_id`,
+  `method`, `path`, `status`, `latency_ms`, plus optional `customer_id` /
+  `branch_id` extracted from `req.auth.customer_id` / `req.customer` and
+  `body.branch_id` / `query.branch_id`.
+- **Rate limiting**: `express-rate-limit` added. Three gates wired —
+  `/auth/otp/request` (10/IP/hour + 3/phone/10min), `/visits/scan/lookup`
+  (10/IP/min, complements the existing DB-ladder), and `/admin/auth/login`
+  (5/IP/15min, complements the per-account throttle in `auth.service`).
+  All three emit the standard `ApiResponse` 429 with `ERROR_CODES.RATE_LIMITED`.
+- **Security headers**: `helmet()` replaced with
+  `{ contentSecurityPolicy: false, crossOriginResourcePolicy: 'cross-origin' }`.
+  CSP disabled because this is a JSON API.
+- **CORS**: already parses `CORS_ALLOWED_ORIGINS` into `string[]` via the zod
+  transform — no change needed. Array is fed straight to `cors({ origin })`
+  so off-list origins are rejected.
+- **Readiness probe**: `GET /ready` runs a 2s-capped `supabaseAdmin.from
+  ('branches').select('id').limit(1)` and returns 503
+  `apiError(SERVICE_NOT_READY)` on failure. `/health` (liveness) kept as-is.
+- **Seed pilot** (`src/supabase/seed-pilot.ts`): TS script, hard-fails in
+  `NODE_ENV=production`. Upserts 2 pilot admins, creates 20 customers (5 new,
+  5 mid, 5 almost-ready, 3 at 10-stamps + pending reward, 2 returning with
+  a redeemed reward), backfills visits, logs the summary line.
+- **Docker**: multi-stage `Dockerfile` (builder + runner, USER node,
+  HEALTHCHECK on `/health`), `docker-compose.yml` with only the `api`
+  service (Supabase Cloud is external — documented in the compose comment),
+  `.dockerignore` excludes the usual suspects.
+- **README Deployment section** added — Supabase setup, env-var table,
+  migrations, seed, pg_cron schedule SQL, DNS notes, deployment targets
+  (Render / Railway / Fly.io), and why Vercel is NOT recommended for this
+  Express backend.
+- **Smoke test** (`tests/smoke/customer-journey.smoke.ts`): standalone
+  ts-node script (uses native `fetch`, no axios), exits 0/1, drives the full
+  OTP → register → 10 scans → redeem flow against a live server. Clears
+  `customers.last_scan_at` between scans to bypass the 24h lockout.
+
+### Files added
+- `src/lib/sentry.ts`
+- `src/middleware/rateLimiters.ts`
+- `src/types/express.d.ts`
+- `src/supabase/seed-pilot.ts`
+- `tests/smoke/customer-journey.smoke.ts`
+- `tests/smoke/README.md`
+- `Dockerfile`
+- `docker-compose.yml`
+- `.dockerignore`
+
+### Files changed
+- `src/config/env.ts` — added `SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE`
+  (default 0.1), `APP_RELEASE` (all optional).
+- `src/constants/http.ts` — added `SERVICE_UNAVAILABLE` (503).
+- `src/constants/errors.ts` — added `SERVICE_NOT_READY` code + bilingual
+  messages.
+- `src/lib/logger.ts` — no change needed (winston JSON transport already
+  handles structured fields).
+- `src/middleware/requestLogger.ts` — request_id, latency_ms, structured
+  customer_id / branch_id fields.
+- `src/middleware/errorHandler.ts` — `captureException` on 5xx + unknowns;
+  request_id threaded into the error log line.
+- `src/server.ts` — initSentry, helmet options, /ready route, graceful
+  shutdown, process-level uncaught handlers.
+- `src/modules/auth/auth.routes.ts` — otp per-IP + per-phone limiters.
+- `src/modules/visit/visit.routes.ts` — scan-lookup limiter.
+- `src/modules/admin/auth/auth.routes.ts` — admin-login limiter.
+- `package.json` — `@sentry/node`, `express-rate-limit`; scripts
+  `seed:pilot`, `test:smoke`.
+- `.eslintrc.cjs` — ignore `tests/smoke/` (standalone script, not in the
+  project's tsconfig include).
+- `README.md` — new Deployment section.
+
+### Rate-limiter status before this chunk
+- `/auth/otp/request` — no express-rate-limit. Only a DB-count 3/phone/10min
+  check inside the controller. Added 10/IP/hour AND 3/phone/10min gates.
+- `/visits/scan/lookup` — no express-rate-limit. A DB ladder in
+  `visit.service` enforces 10/IP/min hard + 5/IP/hour silence mode. Added a
+  coarse express-rate-limit gate at 10/IP/min as a front-line.
+- `/admin/auth/login` — no express-rate-limit. Per-account throttle inside
+  `auth.service`. Added a per-IP 5/15min gate so one host can't spray
+  credentials across many accounts.
+
+### Decisions
+- **Sentry no-op when DSN unset**: keeps Sentry a pure ops choice. Dev
+  machines and CI don't need to know anything about it. Logging the
+  "disabled" line once at boot gives a clear signal when it's intentionally
+  off.
+- **fetch(), not axios, for smoke**: native fetch ships with Node 20+, so
+  the smoke script adds zero deps. Keeping it a standalone script (not Jest)
+  matches the "runs against a live URL, exits 0/1" contract.
+- **`.d.ts` as ambient, not module**: dropped the `export {}` so the
+  Request augmentation merges globally; tsconfig's `include: src/**/*` picks
+  it up without a side-effect import (which ts-jest can't resolve).
+- **SERVICE_NOT_READY error code** added rather than reusing
+  `INTERNAL_ERROR` for /ready — 503 is a distinct signal for load balancers
+  and the envelope stays consistent with every other endpoint.
+- **Smoke test uses `devOtp`** from the OTP-request response (only echoed
+  when `NODE_ENV=development`). For staging runs against a non-dev backend,
+  a follow-up chunk should add an admin-reveal endpoint or inject the OTP
+  over the audit channel.
+
+### Open questions
+- Should we add a `/admin/debug/otp/:phone` endpoint (admin-auth'd) so smoke
+  tests can run against a non-dev backend without reading bcrypt hashes?
+- `SENTRY_TRACES_SAMPLE_RATE` defaults to 0.1 — tune down in prod once
+  volume is known; 10% of every request carrying a trace is generous.
+- `APP_RELEASE` is a free-form string today. A future chunk could default
+  it to `kayan-backend@${package.json.version}-${git-sha}` via a build step.
+
+### Verification
+- `npm install` — 68 packages added (Sentry + express-rate-limit + their
+  deps). 2 high-severity vulnerabilities reported by npm audit — both in
+  transitive deps; out of scope.
+- `npm run typecheck` — clean.
+- `npm run lint` — 10 pre-existing errors, identical to baseline. No new
+  lint errors introduced. (All pre-existing errors are `tests/integration/*`
+  files missing from tsconfig include — unchanged by this chunk.)
+- `npm test` — 38 pass / 2 fail. Both failures (`auth.test.ts` verify-OTP
+  path) are pre-existing per Chunk 7.1's verification block.
+- `npm run build` — clean.
+- Smoke + seed-pilot not run (require live DB, per spec).

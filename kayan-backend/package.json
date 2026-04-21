@@ -10,7 +10,9 @@
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "seed:pilot": "ts-node -r tsconfig-paths/register src/supabase/seed-pilot.ts",
+    "test:smoke": "ts-node -r tsconfig-paths/register tests/smoke/customer-journey.smoke.ts"
   },
   "keywords": [
     "kayan",
@@ -21,11 +23,13 @@
   "license": "UNLICENSED",
   "private": true,
   "dependencies": {
+    "@sentry/node": "^8.40.0",
     "@supabase/supabase-js": "^2.45.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "winston": "^3.14.2",

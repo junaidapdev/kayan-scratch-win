@@ -2,16 +2,19 @@ import { Router } from 'express';
 
 import { validate } from '@/middleware/validator';
 import { requireAuth } from '@/lib/jwt';
+import { scanLookupLimiter } from '@/middleware/rateLimiters';
 
 import { visitValidators } from './visit.validators';
 import { scan, scanLookup } from './visit.controller';
 
 const router = Router();
 
-// Unauthenticated — returning-customer recognition. Rate-limited by IP inside
-// the controller (see visit.service#recordLookupAndCheckLimits).
+// Unauthenticated — returning-customer recognition. Rate-limited first by a
+// coarse express-rate-limit 10/min/IP gate (short-circuits before DB touch),
+// then by the finer DB ladder in visit.service#recordLookupAndCheckLimits.
 router.post(
   '/scan/lookup',
+  scanLookupLimiter,
   validate(visitValidators.scanLookup),
   scanLookup,
 );
