@@ -519,3 +519,37 @@ for upcoming timeline polish.)
   follow-up once the product decides the exact definitions.
 - **Branch drill-down chart** only renders `scans` and `stamps_awarded`
   — room to expand if the designers want lockouts or spend layered on.
+
+---
+
+## Chunk 7.1 — Admin polish pass (2026-04-21)
+
+Quick polish on the admin frontend after manual smoke test.
+
+### What changed
+- **Branch drilldown dialog**: added a `<Legend>` and a third `lockouts`
+  line (red) to match the subtitle copy "Scans, stamps and lockouts".
+- **Redemption Log**: added a **Voided** filter pill; when selected it
+  calls the list endpoint with `voided_only=true` and no status filter.
+- **Redemption Log subtitle**: now pluralizes correctly
+  ("1 issued reward" vs "N issued rewards").
+- **Issued reward detail dialog**: when a reward is redeemed, the
+  dialog now surfaces forensic fields — `Branch` (name), `IP`, and
+  `Device` (fingerprint, monospace, wrappable).
+- **Sidebar / Rewards-catalog Archive action**: code audit confirmed
+  both were already correct (filled yellow active state; `text-red-600`
+  destructive color on Archive). No code change — the polish list item
+  resolved on inspection.
+
+### Files changed (frontend)
+- `src/pages/admin/components/AdminBranchDrilldownDialog.tsx` — Legend + lockouts line
+- `src/pages/admin/AdminRewardsIssuedPage.tsx` — Voided pill, pluralization, list params
+- `src/lib/adminApi.ts` — `voidedOnly` param on `listIssuedRewards`
+- `src/interfaces/admin/AdminIssuedRewardDetail.ts` — `redeemed_at_branch_name`
+- `src/pages/admin/components/AdminIssuedRewardDetailDialog.tsx` — Branch/IP/Device rows
+
+### Verification
+- `npm run typecheck` — clean
+- `npm run lint` — 0 errors (3 pre-existing warnings)
+- `npm test` — 27/27 pass
+- `npm run build` — succeeds

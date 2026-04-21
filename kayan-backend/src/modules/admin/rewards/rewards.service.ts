@@ -39,6 +39,18 @@ interface JoinedRow {
     | { phone: string; name: string | null }
     | { phone: string; name: string | null }[]
     | null;
+  branches?:
+    | { name: string }
+    | { name: string }[]
+    | null;
+}
+
+function joinedBranch(
+  j: JoinedRow['branches'],
+): { name: string } | null {
+  if (!j) return null;
+  if (Array.isArray(j)) return j[0] ?? null;
+  return j;
 }
 
 function joinedCustomer(
@@ -78,6 +90,7 @@ export interface ListIssuedParams {
   customerId?: string;
   catalogId?: string;
   includeVoided: boolean;
+  voidedOnly?: boolean;
 }
 
 export interface ListIssuedResult {
@@ -103,7 +116,11 @@ export async function listIssued(params: ListIssuedParams): Promise<ListIssuedRe
   if (params.status) query = query.eq('status', params.status);
   if (params.customerId) query = query.eq('customer_id', params.customerId);
   if (params.catalogId) query = query.eq('catalog_id', params.catalogId);
-  if (!params.includeVoided) query = query.is('voided_at', null);
+  if (params.voidedOnly) {
+    query = query.not('voided_at', 'is', null);
+  } else if (!params.includeVoided) {
+    query = query.is('voided_at', null);
+  }
 
   const { data, error, count } = await query;
   if (error) throw internal(error.message, 'Failed to list issued rewards');
@@ -122,7 +139,7 @@ export async function fetchIssuedDetail(
   const { data, error } = await supabaseAdmin
     .from(TABLE)
     .select(
-      'id, unique_code, status, catalog_id, customer_id, reward_name_snapshot, reward_name_snapshot_ar, issued_at, expires_at, redeemed_at, redeemed_at_branch_id, redemption_ip, redemption_device_fingerprint, voided_at, voided_by, void_reason, customers(phone, name)',
+      'id, unique_code, status, catalog_id, customer_id, reward_name_snapshot, reward_name_snapshot_ar, issued_at, expires_at, redeemed_at, redeemed_at_branch_id, redemption_ip, redemption_device_fingerprint, voided_at, voided_by, void_reason, customers(phone, name), branches:redeemed_at_branch_id(name)',
     )
     .eq('id', id)
     .maybeSingle();
@@ -130,11 +147,13 @@ export async function fetchIssuedDetail(
   if (!data) return null;
   const r = data as unknown as JoinedRow;
   const cust = joinedCustomer(r.customers);
+  const br = joinedBranch(r.branches ?? null);
   return {
     ...rowToListItem(r),
     customer_phone_full: cust?.phone ?? '',
     redemption_ip: r.redemption_ip,
     redemption_device_fingerprint: r.redemption_device_fingerprint,
+    redeemed_at_branch_name: br?.name ?? null,
   };
 }
 

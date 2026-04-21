@@ -9,6 +9,9 @@ const listQuery = z.object({
   include_voided: z
     .union([z.literal('true'), z.literal('false')])
     .optional(),
+  voided_only: z
+    .union([z.literal('true'), z.literal('false')])
+    .optional(),
 });
 
 const idParam = z.object({ id: z.string().uuid() });

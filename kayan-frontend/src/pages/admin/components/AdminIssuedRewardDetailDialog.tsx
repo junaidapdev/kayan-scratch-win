@@ -92,9 +92,24 @@ export default function AdminIssuedRewardDetailDialog({
                   {new Date(detail.expires_at).toLocaleString()}
                 </Row>
                 {detail.redeemed_at ? (
-                  <Row label="Redeemed">
-                    {new Date(detail.redeemed_at).toLocaleString()}
-                  </Row>
+                  <>
+                    <Row label="Redeemed">
+                      {new Date(detail.redeemed_at).toLocaleString()}
+                    </Row>
+                    <Row label="Branch">
+                      {detail.redeemed_at_branch_name ?? '—'}
+                    </Row>
+                    <Row label="IP">
+                      <span className="font-mono text-xs">
+                        {detail.redemption_ip ?? '—'}
+                      </span>
+                    </Row>
+                    <Row label="Device">
+                      <span className="break-all font-mono text-xs">
+                        {detail.redemption_device_fingerprint ?? '—'}
+                      </span>
+                    </Row>
+                  </>
                 ) : null}
                 {detail.voided_at ? (
                   <>

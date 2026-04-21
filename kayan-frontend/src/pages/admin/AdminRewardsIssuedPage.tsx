@@ -13,8 +13,14 @@ import { logger } from '@/lib/logger';
 
 import AdminIssuedRewardDetailDialog from './components/AdminIssuedRewardDetailDialog';
 
-type StatusFilter = 'all' | 'pending' | 'redeemed' | 'expired';
-const STATUS_FILTERS: StatusFilter[] = ['all', 'pending', 'redeemed', 'expired'];
+type StatusFilter = 'all' | 'pending' | 'redeemed' | 'expired' | 'voided';
+const STATUS_FILTERS: StatusFilter[] = [
+  'all',
+  'pending',
+  'redeemed',
+  'expired',
+  'voided',
+];
 
 const COLUMNS: ColumnDef<AdminIssuedRewardRow, unknown>[] = [
   { accessorKey: 'unique_code', header: 'Code' },
@@ -65,8 +71,12 @@ export default function AdminRewardsIssuedPage(): JSX.Element {
       const res = await listIssuedRewards({
         page,
         pageSize: ADMIN_PAGE_SIZE_DEFAULT,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        includeVoided: true,
+        status:
+          statusFilter === 'all' || statusFilter === 'voided'
+            ? undefined
+            : statusFilter,
+        includeVoided: statusFilter !== 'voided',
+        voidedOnly: statusFilter === 'voided',
       });
       setRows(res.rows);
       setTotal(res.total);
@@ -89,7 +99,7 @@ export default function AdminRewardsIssuedPage(): JSX.Element {
     <div>
       <AdminPageHeader
         title="Redemption Log"
-        subtitle={`${total.toLocaleString()} issued rewards`}
+        subtitle={`${total.toLocaleString()} issued ${total === 1 ? 'reward' : 'rewards'}`}
       />
       <div className="mb-4 flex gap-1">
         {STATUS_FILTERS.map((s) => (

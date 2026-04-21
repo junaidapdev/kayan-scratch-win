@@ -283,6 +283,7 @@ export interface ListIssuedParams {
   customerId?: string;
   catalogId?: string;
   includeVoided?: boolean;
+  voidedOnly?: boolean;
 }
 
 export async function listIssuedRewards(
@@ -296,6 +297,9 @@ export async function listIssuedRewards(
   if (params.catalogId) query.catalog_id = params.catalogId;
   if (params.includeVoided !== undefined) {
     query.include_voided = params.includeVoided ? 'true' : 'false';
+  }
+  if (params.voidedOnly !== undefined) {
+    query.voided_only = params.voidedOnly ? 'true' : 'false';
   }
   return adminRequest(() =>
     http.get<AdminPagedResult<AdminIssuedRewardRow>>(

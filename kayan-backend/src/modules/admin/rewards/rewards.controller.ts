@@ -25,6 +25,7 @@ export async function list(
       customerId: q.customer_id,
       catalogId: q.catalog_id,
       includeVoided: q.include_voided === 'true',
+      voidedOnly: q.voided_only === 'true',
     });
     res.json(apiSuccess(result));
   } catch (err) {

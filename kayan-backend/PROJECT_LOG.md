@@ -517,3 +517,31 @@ starting any task.
     customer table + detail page → issued-rewards table with void
     modal → CSV export button. English-only acceptable for v1; can
     mirror the customer PWA's ar/en toggle later.
+
+---
+
+## Chunk 7.1 — Admin polish pass (2026-04-21)
+
+Small backend addition supporting the frontend polish.
+
+### What changed
+- Issued-rewards list endpoint accepts a new `voided_only=true|false`
+  query param. When `true`, only rows with `voided_at IS NOT NULL`
+  are returned (previously only `include_voided` existed, which
+  always merged voided rows into the other filters).
+- `fetchIssuedDetail` now joins the `branches` table via
+  `branches:redeemed_at_branch_id(name)` and exposes
+  `redeemed_at_branch_name: string | null` on the detail DTO. Enables
+  the admin UI to show where a reward was redeemed.
+
+### Files changed (backend)
+- `src/modules/admin/rewards/rewards.validators.ts` — `voided_only` enum
+- `src/modules/admin/rewards/rewards.controller.ts` — pass `voidedOnly` through
+- `src/modules/admin/rewards/rewards.service.ts` — `voidedOnly` branch in `listIssued`; branches join + `redeemed_at_branch_name` in `fetchIssuedDetail`
+- `src/interfaces/admin/IssuedRewardAdmin.ts` — new field on `IssuedRewardAdminDetail`
+
+### Verification
+- `npm run typecheck` — clean
+- Admin integration tests: 21/21 pass (`npx jest tests/integration/admin`)
+- Full suite: 2 pre-existing, unrelated failures in `auth.test.ts` and
+  `reward.test.ts` (not introduced by this chunk)

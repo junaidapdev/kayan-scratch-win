@@ -2,6 +2,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useEffect, useState } from 'react';
 import {
   CartesianGrid,
+  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -68,9 +69,14 @@ export default function AdminBranchDrilldownDialog({
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
                   <Tooltip />
+                  <Legend
+                    wrapperStyle={{ fontSize: 12 }}
+                    iconType="plainline"
+                  />
                   <Line
                     type="monotone"
                     dataKey="scans"
+                    name="Scans"
                     stroke="#FFD700"
                     strokeWidth={2}
                     dot={false}
@@ -78,7 +84,16 @@ export default function AdminBranchDrilldownDialog({
                   <Line
                     type="monotone"
                     dataKey="stamps_awarded"
+                    name="Stamps"
                     stroke="#0D0D0D"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="lockouts"
+                    name="Lockouts"
+                    stroke="#DC2626"
                     strokeWidth={2}
                     dot={false}
                   />
