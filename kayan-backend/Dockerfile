@@ -24,8 +24,14 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 FROM node:20-alpine AS runner
 
+# GIT_SHA is passed in by the build pipeline, e.g.
+#   docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) .
+# It becomes APP_RELEASE inside the container so Sentry can tag every
+# captured error with the exact commit that produced this image.
+ARG GIT_SHA=dev
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV APP_RELEASE=$GIT_SHA
 
 WORKDIR /app
 

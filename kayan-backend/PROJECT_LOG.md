@@ -677,3 +677,34 @@ Small backend addition supporting the frontend polish.
   path) are pre-existing per Chunk 7.1's verification block.
 - `npm run build` — clean.
 - Smoke + seed-pilot not run (require live DB, per spec).
+
+---
+
+## Chunk 8a.1 — Launch-prep follow-ups (2026-04-21)
+
+Closing the three open questions from Chunk 8a.
+
+### Decisions
+- **OTP-reveal endpoint: rejected.** Pilot traffic (~2,000 scans/day for one
+  week, single admin) does not warrant post-deploy smoke tests against prod.
+  Smoke tests remain a local/dev-only tool — they rely on the backend's
+  existing `devOtp` echo in `NODE_ENV=development`. If staging smoke tests
+  are ever needed, the preferred path is a reserved pool of fixed test
+  phone numbers gated inside the OTP service, NOT a debug endpoint.
+- **Sentry `tracesSampleRate`: unchanged.** 0.1 is appropriate at pilot
+  scale; revisit once traffic grows.
+- **`APP_RELEASE`: auto-wired to git SHA.** Dockerfile now accepts a
+  `GIT_SHA` build arg and bakes it into `APP_RELEASE`. Every error
+  captured by Sentry is tagged with the commit that produced the image,
+  so regressions can be bisected against the repo without anyone
+  remembering to bump a manual version string.
+
+### Files changed
+- `Dockerfile` — `ARG GIT_SHA=dev`, `ENV APP_RELEASE=$GIT_SHA`
+- `docker-compose.yml` — plumbs `GIT_SHA` from the host shell
+- `README.md` — new **Release tagging** section covering Docker, Render
+  (`RENDER_GIT_COMMIT`), Railway (`RAILWAY_GIT_COMMIT_SHA`), and Fly.io
+- `.env.example` — documents `SENTRY_*` + `APP_RELEASE`
+
+### Verification
+Config-only changes; no runtime code touched. `npm run typecheck` still clean.

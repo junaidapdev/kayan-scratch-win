@@ -96,7 +96,7 @@ most recent entry before starting a new task; append a new entry when you finish
 | `LOG_LEVEL`                     |    no    | `info`                                          | `error`, `warn`, `info`, `debug`.                             |
 | `SENTRY_DSN`                    |    no    | `https://…@sentry.io/…`                         | When unset, Sentry is a no-op.                                |
 | `SENTRY_TRACES_SAMPLE_RATE`     |    no    | `0.1`                                           | 0.0 – 1.0. Defaults to 0.1.                                   |
-| `APP_RELEASE`                   |    no    | `kayan-backend@0.1.0`                           | Used as Sentry release tag. Defaults to `dev`.                |
+| `APP_RELEASE`                   |    no    | `469cc63`                                       | Sentry release tag. Auto-wired to the git SHA at Docker build time (see **Release tagging** below). Defaults to `dev`. |
 
 ### Migrations
 
@@ -135,6 +135,35 @@ The production API is expected at `api.kayansweets.com`. Whatever host you
 deploy to, add its origin to `CORS_ALLOWED_ORIGINS` so the customer PWA and
 admin portal can reach it. The PWA typically lives at
 `app.kayansweets.com` and the admin portal at `admin.kayansweets.com`.
+
+### Release tagging (Sentry)
+
+Every captured error in Sentry is tagged with a release string so you can
+tell which deploy produced which bug. The backend reads this from
+`APP_RELEASE`; what you should set it to depends on how you're deploying:
+
+- **Docker build (recommended):** the Dockerfile accepts a `GIT_SHA` build
+  arg and bakes it into `APP_RELEASE`. Build like:
+  ```bash
+  docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD) -t kayan-backend .
+  ```
+  Or with compose:
+  ```bash
+  GIT_SHA=$(git rev-parse --short HEAD) docker compose up --build
+  ```
+  If you forget, the image ships with `APP_RELEASE=dev` — safe, but less
+  useful for triage.
+- **Render:** set `APP_RELEASE=$RENDER_GIT_COMMIT` in the service's
+  environment tab. Render exposes that variable automatically.
+- **Railway:** set `APP_RELEASE=$RAILWAY_GIT_COMMIT_SHA`.
+- **Fly.io:** pass `--build-arg GIT_SHA=$(git rev-parse --short HEAD)` on
+  `fly deploy`.
+
+Smoke tests are a **local-only** tool — they rely on the backend echoing
+OTP codes in `NODE_ENV=development`. There is no production "OTP reveal"
+endpoint by design (keeps the auth surface clean). If you want to smoke a
+staging deploy later, reserve a small pool of fixed test phone numbers
+and gate them in the OTP service instead.
 
 ### Deployment targets
 
